@@ -1,9 +1,7 @@
-var program = require('commander');
 var fs = require('fs');
 var atob = require('atob');
 var _ = require('underscore');
 var Q = require('q');
-var ProtoBuf = require("protobufjs");
 
 global.window = global;
 global.navigator = { userAgent: 'node' };
@@ -15,41 +13,23 @@ PDFJS.workerSrc = true;
 
 require('./pdfjs/build/singlefile/build/pdf.combined.js');
 
-var builder = ProtoBuf.loadProtoFile(__dirname + "/SpaDoc.proto"), // somehow must be an absolute path
-    spa = builder.build("ebm.spa"),
-    Document = spa.Document;
-
-function textContentToDocument(pdf, content) {
-  var nodes = [];
+function textContent(pdf, content) {
   var pages = [];
-  var text = "";
 
-  var totalLength = 0;
   for (var i = 0; i < content.length; i++) {
-    var offset = 0;
     var page = content[i];
     var items = page.items;
+    var pageText = "";
     for (var j = 0; j < items.length; j++) {
       var item = items[j];
-      var nextOffset = offset + item.str.length;
-      var node = { page_index: i,
-		   node_index: j,
-		   interval: { lower: totalLength + offset,
-			       upper: totalLength + nextOffset }};
-      text += (item.str + " ");
-      offset = nextOffset + 1; // 1 added for the extra space in text join
-      nodes.push(node);
+      pageText += (item.str + " ");
     }
-    pages.push({ offset: totalLength, length: offset });
-    totalLength += offset;
+    pages.push(pageText);
   }
 
   var fingerprint = pdf.pdfInfo.fingerprint;
-  return new Document({
-    "fingerprint": fingerprint,
-    "text": text,
-    "pages": pages,
-    "nodes": nodes });
+  return {"fingerprint": fingerprint,
+          "pages": pages };
 }
 
 function convertToDocument(payload) {
@@ -61,7 +41,7 @@ function convertToDocument(payload) {
     return Q.all(_.invoke(pages, "then", function(page) {
       return page.getTextContent();
     })).then(function(contents) {
-      return textContentToDocument(pdf, contents);
+      return textContent(pdf, contents);
     });
   });
 };
@@ -70,7 +50,7 @@ function handler(payload) {
   var pdf = new Uint8Array(Buffer(payload, "binary"));
   var document = convertToDocument(pdf);
   return document.then(function(doc) {
-    return doc.toBuffer();
+    return JSON.stringify(doc);
   });
 }
 

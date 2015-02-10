@@ -1,14 +1,17 @@
-import logging, copy, sys, uuid, os
+import logging, copy, sys, uuid, os, re
 log = logging.getLogger(__name__)
 
-from document_handler import DocumentHandler
 import cPickle as pickle
 import sklearn
+import json
 
+from nltk.tokenize.punkt import PunktSentenceTokenizer
+
+sys.path.append('../../multilang/python')
 sys.path.append(os.path.abspath("resources/topologies/ebm/"))
 import quality3
 
-class Handler(DocumentHandler):
+class Handler():
     CORE_DOMAINS = ["Random sequence generation", "Allocation concealment", "Blinding of participants and personnel",
                     "Blinding of outcome assessment", "Incomplete outcome data", "Selective reporting"]
 
@@ -28,45 +31,38 @@ class Handler(DocumentHandler):
         self.doc_models, self.doc_vecs, self.sent_models, self.sent_vecs = self.load_models(models_file)
         log.info("%s: done loading models" % (self.title))
 
+        self.word_token_pattern = re.compile(r"(?u)\b\w\w+\b")
+        self.sentence_tokenizer = PunktSentenceTokenizer()
 
-    def add_annotation(self, marginalis, type, index, label="biased", content=None):
-        annotation = marginalis.annotations.add()
-        annotation.label = label
-        annotation.uuid = str(uuid.uuid1())
-        annotation.content = content
-        annotation.mapping.key = type
-        annotation.mapping.index = index
-
-    def handle_document(self, document):
+    def handle(self, payload):
         """
         Adds sentence annotations and document predictions for all
         Risk of Bias core domains to the document as marginalia.
         """
+        document = json.loads(payload)
 
         # first get sentence indices in full text
-        document_text = document.text
-        sent_indices = [(s.elements[0].range.lower, s.elements[-1].range.upper) for s in document.sentences]
+        document_text = "\n".join(document["pages"])
+
+        sent_spans = self.sentence_tokenizer.span_tokenize(document_text)
+
         # then the strings (for internal use only)
-        sent_text = [document_text[start:end] for start, end in sent_indices]
-        sent_text_dict = dict(zip(sent_indices, sent_text))
+        sent_text = [document_text[start:end] for start, end in sent_spans]
 
         output = []
-        sent_preds_by_domain = []
-        doc_preds = {}
         for test_domain, doc_model, doc_vec, sent_model, sent_vec in zip(self.CORE_DOMAINS, self.doc_models, self.doc_vecs, self.sent_models, self.sent_vecs):
-            marginalis = document.marginalia.add()
-            marginalis.title = test_domain
-
             ####
             ## PART ONE - get the predicted sentences with risk of bias information
             ####
+            annotations = []
+
             X_sents = sent_vec.transform(sent_text)
             pred_sents = [int(x_i) for x_i in sent_model.predict(X_sents)]
 
             positive_sents = [(index, sent) for index, (sent, pred) in enumerate(zip(sent_text, pred_sents)) if pred == 1]
 
             for index, sent in positive_sents:
-                self.add_annotation(marginalis, "sentences", index, content=sent)
+                annotations += [{"content": sent, "uuid": str(uuid.uuid1()), "label": "biased"}]
 
             ####
             ## PART TWO - integrate summarized and full text, then predict the document class
@@ -81,6 +77,11 @@ class Handler(DocumentHandler):
 
             document_prediction = "low" if doc_model.predict(X_doc)[0] == 1 else "uncertain"
             template_text = "**Overall risk of bias prediction**: %s"
-            marginalis.description = template_text % (document_prediction)
+            description = template_text % (document_prediction)
 
-        return document
+            output.append({
+                "annotations": annotations,
+                "description": description,
+                "title": test_domain
+            })
+        return json.dumps({"marginalia": output})
