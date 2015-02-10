@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html class="view">
+  <head>
+    <title>Vortext for Evidence Based Medicine</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google" content="notranslate">
+
+    <link href="/scripts/spa/css/main.css" rel="stylesheet">
+    <script src="/scripts/modernizr.js"></script>
+
+    <script data-main="/scripts/main" src="/scripts/require.js"></script>
+    <script>
+     CSRF_TOKEN = "{% csrf-token %}";
+    </script>
+
+  </head>
+
+  <body class="antialiased">
+
+    <nav id="top-bar" class="top-bar" data-topbar role="navigation">
+    </nav>
+
+    <main>
+      <div id="viewer"></div>
+      <div id="side">
+        <div id="marginalia"></div>
+      </div>
+    </main>
+  </body>
+</html>
