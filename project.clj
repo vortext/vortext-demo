@@ -29,7 +29,7 @@
                  [environ "1.0.0"]
                  [org.blancas/kern "0.7.0"]
 
-                 [lib-noir "0.9.0"]
+                 [lib-noir "0.9.5"]
                  [noir-exception "0.2.3"]
                  [selmer "0.8.0"]
 
