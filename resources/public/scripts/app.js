@@ -45,7 +45,7 @@ define(function (require) {
   );
 
   var documentComponent = React.render(
-    Document({pdf: documentModel}),
+    Document({pdf: documentModel, marginalia: marginaliaModel}),
     document.getElementById("viewer")
   );
 

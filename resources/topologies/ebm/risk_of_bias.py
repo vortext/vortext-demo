@@ -42,7 +42,7 @@ class Handler():
         document = json.loads(payload)
 
         # first get sentence indices in full text
-        document_text = "\n".join(document["pages"])
+        document_text = " ".join(document["pages"])
 
         sent_spans = self.sentence_tokenizer.span_tokenize(document_text)
 
