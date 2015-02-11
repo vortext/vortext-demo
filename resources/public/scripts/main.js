@@ -2,7 +2,6 @@ var spa = "spa/scripts/";
 
 require.config({
   jsx: {
-    harmony: true,
     fileExtension: '.jsx'
   },
   paths: {
@@ -15,6 +14,7 @@ require.config({
     'backbone': 'spa/scripts/vendor/backbone',
 
     'react': "spa/scripts/vendor/react",
+    'immutable': "spa/scripts/vendor/immutable",
 
     'JSXTransformer': "spa/scripts/vendor/JSXTransformer",
     'PDFJS': "spa/scripts/vendor/pdfjs/pdf"

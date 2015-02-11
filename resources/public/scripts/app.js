@@ -58,17 +58,19 @@ define(function (require) {
   // Listen to model change callbacks -> trigger updates to components
   marginaliaModel.on("all", function(e, obj) {
     switch(e) {
-    case "annotations:select":
-      var fingerprint = documentModel.get("fingerprint");
-      documentComponent.setState({select: obj});
-      break;
+    case "reset":
+      documentModel.annotate(marginaliaModel.getActive());
+      marginaliaComponent.forceUpdate();
     case "annotations:change":
       break;
+    case "change:active":
     case "annotations:add":
     case "annotations:remove":
+      documentModel.annotate(marginaliaModel.getActive());
+      marginaliaComponent.forceUpdate();
+      break;
     case "change:description":
     default:
-      documentModel.setActiveAnnotations(marginaliaModel);
       marginaliaComponent.forceUpdate();
     }
   });
@@ -76,32 +78,23 @@ define(function (require) {
   documentModel.on("all", function(e, obj) {
     switch(e) {
     case "change:raw":
-      var fingerprint = obj.changed.raw.pdfInfo.fingerprint;
       documentComponent.setState({
-        fingerprint: fingerprint
+        fingerprint: documentModel.get("fingerprint")
       });
       break;
     case "change:binary":
       marginaliaModel.reset();
       break;
-    case "annotation:add":
-      var model = marginaliaModel.findWhere({active: true}).get("annotations");
-      model.add(obj);
-      break;
     case "pages:change:state":
       if(obj.get("state") > window.RenderingStates.HAS_PAGE) {
-        documentModel.setActiveAnnotations(marginaliaModel);
+        documentModel.annotate(marginaliaModel.getActive());
       }
       documentComponent.forceUpdate();
       break;
     case "pages:change:annotations":
-      var annotations = marginaliaModel.pluck("annotations");
-      var highlighted = _.find(annotations, function(annotation) { return annotation.findWhere({highlighted: true});});
-      documentComponent.setProps({highlighted: highlighted && highlighted.findWhere({highlighted: true})});
-      break;
+      documentComponent.forceUpdate();
     default:
       break;
     }
   });
-
 });

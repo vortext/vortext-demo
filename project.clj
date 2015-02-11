@@ -16,7 +16,7 @@
         :dev true}
   :profiles {:production {:env {:dev false}}}
   :jvm-opts ["-server"]
-  :dependencies [[org.clojure/clojure "1.6.0"]
+  :dependencies [[org.clojure/clojure "1.7.0-alpha5"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha"]
                  [org.clojure/tools.cli "0.3.1"]
 
@@ -44,7 +44,6 @@
                  [commons-codec/commons-codec "1.10"]
 
                  ;; serialization libraries
-                 [org.flatland/protobuf "0.8.1"]
                  [cheshire "5.4.0"]
 
                  ;; ZeroMQ
