@@ -69,6 +69,8 @@ define(function (require) {
       documentModel.annotate(marginaliaModel.getActive());
       marginaliaComponent.forceUpdate();
       break;
+    case "annotations:select":
+      documentComponent.setState({select: obj});
     case "change:description":
     default:
       marginaliaComponent.forceUpdate();
