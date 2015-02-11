@@ -82,6 +82,7 @@ class Handler():
             output.append({
                 "annotations": annotations,
                 "description": description,
-                "title": test_domain
+                "title": test_domain,
+                "type": "Risk of Bias"
             })
         return json.dumps({"marginalia": output})
