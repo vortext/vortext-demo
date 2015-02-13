@@ -1,7 +1,6 @@
 (ns vortext.util
   (:require [clojure.string :as string]
-            [clojure.walk :as walk]
-            [blancas.kern.core :refer :all]))
+            [clojure.walk :as walk]))
 
 
 ;; from https://github.com/jeremyheiler/wharf
@@ -22,67 +21,3 @@
   "Converts the first character of s to lower-case."
   [s]
   (str (.toLowerCase (subs s 0 1)) (subs s 1)))
-
-(defn parse-dash-case
-  [s]
-  (value (sep-by (sym* \-) (<+> letter (many1 (<|> letter digit)))) s))
-
-(defn parse-underscore-case
-  [s]
-  (value (sep-by (sym* \_) (<+> letter (many1 (<|> letter digit))))s ))
-
-(defn parse-camel-case
-  [s]
-  (value (many1 (<+> letter (many0 (<|> lower digit)))) s))
-
-(defn camel->dash
-  [s]
-  (->> s
-       (parse-camel-case)
-       (string/join "-")))
-
-(defn camel->underscore
-  [s]
-  (->> s
-       (parse-camel-case)
-       (string/join "_")))
-
-(defn dash->upper-camel
-  [s]
-  (->> s
-       (parse-dash-case)
-       (map capitalize)
-       (string/join)))
-
-(defn dash->lower-camel
-  [s]
-  (->> s
-       (parse-dash-case)
-       (map capitalize)
-       (string/join)
-       (uncapitalize)))
-
-(defn underscore->upper-camel
-  [s]
-  (->> s
-       (parse-underscore-case)
-       (map capitalize)
-       (string/join)))
-
-(defn underscore->lower-camel
-  [s]
-  (->> s
-       (parse-underscore-case)
-       (map capitalize)
-       (string/join)
-       (uncapitalize)))
-
-(defn dash->underscore
-  "Converts s from dash-case to underscore-case."
-  [s]
-  (string/replace s #"-" "_"))
-
-(defn underscore->dash
-  "Converts s from underscore-case to dash-case."
-  [s]
-  (string/replace s #"_" "-"))
