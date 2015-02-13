@@ -8,9 +8,9 @@
   [name request]
   (let [c (topologies/process name request)]
     (http/with-channel request channel
-      (async/go-loop [v (<! c)]
-        (http/send! channel (:sink v)))
-      (http/on-close channel (fn [_] (async/close! c))))))
+      (async/go
+        (let [resp (:sink (<! c))]
+          (http/send! channel resp))))))
 
 (defroutes topology-routes
   (POST "/topologies/:name" [name :as request] (topology-handler name request)))
