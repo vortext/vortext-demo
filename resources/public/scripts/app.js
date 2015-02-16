@@ -36,7 +36,7 @@ define(function (require) {
   };
 
   var topBarComponent = React.render(
-    TopBar({
+    new TopBar({
       callback: process,
       accept: ".pdf",
       mimeType: /application\/(x-)?pdf|text\/pdf/
@@ -45,12 +45,12 @@ define(function (require) {
   );
 
   var documentComponent = React.render(
-    Document({pdf: documentModel, marginalia: marginaliaModel}),
+    new Document({pdf: documentModel, marginalia: marginaliaModel}),
     document.getElementById("viewer")
   );
 
   var marginaliaComponent = React.render(
-    Marginalia({marginalia: marginaliaModel}),
+    new Marginalia({marginalia: marginaliaModel}),
     document.getElementById("marginalia")
   );
 
@@ -61,6 +61,7 @@ define(function (require) {
     case "reset":
       documentModel.annotate(marginaliaModel.getActive());
       marginaliaComponent.forceUpdate();
+      break;
     case "annotations:change":
       break;
     case "change:active":
@@ -71,7 +72,7 @@ define(function (require) {
       break;
     case "annotations:select":
       documentComponent.setState({select: obj});
-    case "change:description":
+      break;
     default:
       marginaliaComponent.forceUpdate();
     }
@@ -95,6 +96,7 @@ define(function (require) {
       break;
     case "pages:change:annotations":
       documentComponent.forceUpdate();
+      break;
     default:
       break;
     }
