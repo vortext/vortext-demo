@@ -36,17 +36,15 @@ define(function (require) {
           <div>
             <ul className="title-area">
               <li className="name">
-                <h1><a href="/">Vortext</a></h1>
+                <h1><a href="/"><img src="/img/logo.png" />vortext</a></h1>
               </li>
             </ul>
 
             <section className="top-bar-section">
-              <ul className="left">
-                <li><a href="example">About</a></li>
-              </ul>
-
               <ul className="right">
                 <input accept={this.props.accept} style={{display:"none"}} name="file" type="file" ref="file" onChange={this.loadFile} />
+
+                <li><a href="example">About</a></li>
                 <li><a onClick={this.loadExample}>Example</a></li>
                 <li className="active" onClick={this.triggerFileUpload}><a>Upload</a></li>
               </ul>
