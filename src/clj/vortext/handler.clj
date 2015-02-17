@@ -21,7 +21,7 @@
 
 (defn init!
   "init will be called once when app is deployed as a servlet on an
-   app server such as Tomcat put any initialization code here"
+  app server such as Tomcat put any initialization code here"
   []
   (timbre/set-config!
    [:appenders :rotor]
@@ -39,7 +39,7 @@
 
 (defn destroy!
   "destroy will be called when your application
-   shuts down, put any clean up code here"
+  shuts down, put any clean up code here"
   []
   (timbre/info "shutting down...")
   (services/shutdown!)
