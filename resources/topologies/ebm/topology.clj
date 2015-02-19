@@ -10,9 +10,14 @@
 ;; You MAY define custom serialization / deserialization, as none is done by default.
 ;; See the [Ring Spec](https://github.com/ring-clojure/ring/blob/master/SPEC)
 
+(defn merge-marginalia [& args]
+  (let [results (map (fn [arg] (get (json/decode (String. arg)) "marginalia")) args)]
+    {:marginalia (flatten results)}))
+
 (def topology
   {:source        (fnk [body] (.bytes body))
-   :text           (fnk [source] (js "ebm/document_parser.js" source :timeout 4000))
+   :text          (fnk [source] (js "ebm/document_parser.js" source :timeout 4000))
    :risk-of-bias  (fnk [text] (py "ebm.risk_of_bias" text :timeout 5000))
-   :sink          (fnk [risk-of-bias] (String. risk-of-bias))
+   :pico          (fnk [text] (py "ebm.pico" text))
+   :sink          (fnk [pico risk-of-bias] (json/encode (merge-marginalia pico risk-of-bias)))
    })

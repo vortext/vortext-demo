@@ -41,12 +41,10 @@ class Handler():
         """
         document = json.loads(payload)
 
-        # first get sentence indices in full text
         document_text = " ".join(document["pages"])
 
         sent_spans = self.sentence_tokenizer.span_tokenize(document_text)
 
-        # then the strings (for internal use only)
         sent_text = [document_text[start:end] for start, end in sent_spans]
 
         output = []
@@ -83,6 +81,6 @@ class Handler():
                 "annotations": annotations,
                 "description": description,
                 "title": test_domain,
-                "type": "Risk of Bias"
+                "type": self.title
             })
         return json.dumps({"marginalia": output})
