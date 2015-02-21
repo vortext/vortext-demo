@@ -1,7 +1,7 @@
 ({
   baseUrl: "./scripts",
   mainConfigFile: './scripts/main.js',
-  dir: "./build",
+  dir: "../build",
   optimize: "uglify2",
   useStrict: true,
 
