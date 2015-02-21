@@ -33,8 +33,9 @@ class Handler():
     def vectorize(self, sentences):
         h = HashingVectorizer(stop_words=stopwords.words('english'),
                               norm="l2",
-                              ngram_range=(3, 3),
-                              analyzer="char_wb",
+                              ngram_range=(1, 2),
+                              analyzer="word",
+                              strip_accents="ascii",
                               decode_error="ignore")
         return h.transform(sentences)
 
@@ -71,7 +72,7 @@ class Handler():
 
             output.append({
                 "annotations": annotations,
-                "description": "",
+                "description": "**This is *very* experimental**",
                 "title": self.PICO_TITLES[domain],
                 "type": self.title
             })
