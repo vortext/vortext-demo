@@ -16,7 +16,7 @@
         :dev true}
   :profiles {:production {:env {:dev false}}}
   :jvm-opts ["-server"]
-  :dependencies [[org.clojure/clojure "1.7.0-alpha5"]
+  :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha"]
                  [org.clojure/tools.cli "0.3.1"]
 
