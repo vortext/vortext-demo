@@ -1,4 +1,5 @@
 ({
+  appDir: "./",
   baseUrl: "./scripts",
   mainConfigFile: './scripts/main.js',
   dir: "../build",
