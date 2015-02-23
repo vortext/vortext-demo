@@ -8,7 +8,7 @@ import json
 from nltk.corpus import stopwords
 
 from sklearn.feature_extraction.text import HashingVectorizer
-from nltk.tokenize.punkt import PunktSentenceTokenizer
+import nltk.tokenize
 
 sys.path.append('../../multilang/python')
 sys.path.append(os.path.abspath("resources/topologies/ebm/"))
@@ -33,7 +33,7 @@ class Handler():
     def vectorize(self, sentences):
         h = HashingVectorizer(stop_words=stopwords.words('english'),
                               norm="l2",
-                              ngram_range=(1, 2),
+                              ngram_range=(1, 1),
                               analyzer="word",
                               strip_accents="ascii",
                               decode_error="ignore")
@@ -48,15 +48,12 @@ class Handler():
             self.models[domain] = self.load_model(models_file)
             log.info("%s: done loading models" % (self.title))
 
-        self.sentence_tokenizer = PunktSentenceTokenizer()
-
     def handle(self, payload):
         document = json.loads(payload)
 
-        # first get sentence indices in full text
         document_text = " ".join(document["pages"])
 
-        sent_text = self.sentence_tokenizer.tokenize(document_text)
+        sent_text = nltk.sent_tokenize(document_text)
 
         X_sents = self.vectorize(sent_text)
 
