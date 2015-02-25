@@ -14,8 +14,10 @@
 
         :port 8888
         :dev true}
-  :profiles {:production {:env {:dev false}}}
-  :jvm-opts ["-server"]
+  :profiles {:production {:jvm-opts ["-server" "-XX:+AggressiveOpts" "-XX:+UseG1GC"]
+                          :env {:dev false}}
+             :uberjar {:aot :all}}
+  :javac-options ["-target" "1.8" "-source" "1.8" "-Xlint:deprecation"]
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha"]
                  [org.clojure/tools.cli "0.3.1"]
