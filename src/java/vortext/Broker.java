@@ -96,7 +96,6 @@ public class Broker implements Runnable {
         this.heartbeatAt = System.currentTimeMillis() + HEARTBEAT_INTERVAL;
         this.ctx = new ZContext();
         this.socket = ctx.createSocket(ZMQ.ROUTER);
-        this.socket.setLinger(0);
         this.bind(endpoint);
     }
 
@@ -275,7 +274,7 @@ public class Broker implements Runnable {
             String name = msg.peekLast().toString();
             returnCode = services.containsKey(name) ? "200" : "400";
         }
-        msg.peekLast().reset(returnCode.getBytes(ZMQ.CHARSET));
+        msg.peekLast().reset(returnCode.getBytes());
         // Remove & save client return envelope and insert the
         // protocol header and service name, then rewrap envelope.
         ZFrame client = msg.unwrap();

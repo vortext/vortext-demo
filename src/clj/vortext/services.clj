@@ -3,7 +3,7 @@
            [org.zeromq ZMsg])
   (:require [taoensso.timbre :as timbre]
             [environ.core :refer :all]
-            [clojure.core.async :as async :refer [mult map< filter< tap chan sliding-buffer go <! >!]]
+            [clojure.core.async :as async :refer [mult map< filter< tap chan sliding-buffer go <! >! thread >!!]]
             [vortext.flake :as flake]
             [clojure.java.io :as io]))
 
@@ -17,14 +17,15 @@
   ((fn []
      (let [replies (chan (sliding-buffer 64))
            mult (mult replies)]
-       (go (loop [reply (.recv client)]
-             (when-not (nil? reply)
-               (let [id (String. (.getData (.pop reply)))
-                     result (.getData (.pop reply))]
-                 (timbre/debug "received reply for request id" id)
-                 (>! replies {:id id :result result})
-                 (.destroy reply)))
-             (recur (.recv client))))
+       (thread
+         (loop [reply (.recv client)]
+           (when-not (nil? reply)
+             (let [id (String. (.getData (.pop reply)))
+                   result (.getData (.pop reply))]
+               (timbre/debug "received reply for request id" id)
+               (>!! replies {:id id :result result})
+               (.destroy reply)))
+           (recur (.recv client))))
        (fn [id]
          (let [u (chan)]
            (map< :result (filter< (fn [reply] (= id (:id reply))) (tap mult u)))))))))
