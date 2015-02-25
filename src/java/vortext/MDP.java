@@ -46,7 +46,7 @@ public enum MDP {
     private final byte[] data;
 
     MDP(String value) {
-        this.data = value.getBytes(ZMQ.CHARSET);
+        this.data = value.getBytes();
     }
     MDP(int value) { //watch for ints>255, will be truncated
         byte b = (byte) (value & 0xFF);
