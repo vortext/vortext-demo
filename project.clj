@@ -14,9 +14,6 @@
 
         :port 8888
         :dev true}
-  :profiles {:production {:jvm-opts ["-server" "-XX:+AggressiveOpts" "-XX:+UseG1GC"]
-                          :env {:dev false}}
-             :uberjar {:aot :all}}
   :javac-options ["-target" "1.8" "-source" "1.8" "-Xlint:deprecation"]
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha"]
@@ -48,5 +45,13 @@
                  [cheshire "5.4.0"]
 
                  ;; ZeroMQ
-                 [org.zeromq/jeromq "0.3.4"]
-                 [org.zeromq/cljzmq "0.1.4" :exclusions [org.zeromq/jzmq]]])
+
+                 [org.zeromq/cljzmq "0.1.4" :exclusions [org.zeromq/jzmq]]]
+  :profiles {:dev {:dependencies [[org.zeromq/jeromq "0.3.4"]]}
+             :production {:dependencies [[org.zeromq/jzmq "3.1.0"]]
+                          :jvm-opts ["-server"
+                                     "-XX:+AggressiveOpts"
+                                     "-XX:+UseG1GC"
+                                     "-Djava.library.path=/usr/lib:/usr/local/lib"]
+                          :env {:dev false}}
+             :uberjar {:aot :all}})
