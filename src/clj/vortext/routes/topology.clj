@@ -8,8 +8,9 @@
   [name request]
   (let [c (topologies/process name request)]
     (http/with-channel request channel
-      (async/go-loop [v (<! c)]
-        (http/send! channel (:sink v)))
+      (go
+        (let [result (<! c)]
+          (http/send! channel (:sink result))))
       (http/on-close channel (fn [_] (async/close! c))))))
 
 (defroutes topology-routes

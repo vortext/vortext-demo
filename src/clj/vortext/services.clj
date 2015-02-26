@@ -5,26 +5,30 @@
             [environ.core :refer :all]
             [clojure.core.async :as async :refer [mult map< filter< tap chan sliding-buffer go <! >! thread >!!]]
             [vortext.flake :as flake]
+            [vortext.zmq :as zmq]
             [clojure.java.io :as io]))
 
 (defonce process-env {"DEBUG" (str (env :debug))
                       "VERSION" (System/getProperty "vortext.version")})
 
-(defonce client (Client. (env :broker-socket)))
-(defonce broker (Broker. (env :broker-socket)))
+(defn new-client
+  [endpoint]
+  (Client. endpoint))
+
+(def new-client-memoize (memoize new-client))
 
 (def listen-for
   ((fn []
-     (let [replies (chan (sliding-buffer 64))
+     (let [client (new-client-memoize (env :broker-socket))
+           replies (chan (sliding-buffer 64))
            mult (mult replies)]
        (thread
          (loop [reply (.recv client)]
-           (when-not (nil? reply)
-             (let [id (String. (.getData (.pop reply)))
-                   result (.getData (.pop reply))]
-               (timbre/debug "received reply for request id" id)
-               (>!! replies {:id id :result result})
-               (.destroy reply)))
+           (let [[_id result] (zmq/from-zmsg reply)
+                 id (String. _id)]
+             (timbre/debug "received reply for request id" id)
+             (>!! replies {:id id :result result})
+             (.destroy reply))
            (recur (.recv client))))
        (fn [id]
          (let [u (chan)]
@@ -33,13 +37,14 @@
 (defn start!
   "Start the service broker"
   []
-  (doto (Thread. broker) (.start)))
+  (doto (Thread. (Broker. (env :broker-socket))) (.start)))
 
 (defn shutdown! [])
 
 (defn rpc
   [name payload]
-  (let [c (chan)
+  (let [client (new-client-memoize (env :broker-socket))
+        c (chan)
         id (flake/url-safe-id)
         request (doto (ZMsg.) (.add payload))]
     (timbre/debug "sending request to" name "with id" id)
@@ -114,7 +119,6 @@
   :reconnect - (optional) the reconnect rate for the service
   :timeout - (optional) timeout for the service (per service)"
   [type file payload & options]
-  (assert (and (not (nil? broker)) (not (nil? client))))
   (if (get options :local? true)
     (let [service (local-service! type file options)]
       (dispatch service payload))
