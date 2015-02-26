@@ -34,7 +34,7 @@
   modules: [
     {
       name: 'main',
-      exclude: ["react", "JSXTransformer", "text", "PDFJS"]
+      exclude: ["react", "JSXTransformer", "text"]
     }
   ]
 })
