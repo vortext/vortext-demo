@@ -23,7 +23,7 @@
                                               javax.jms/jms
                                               com.sun.jdmk/jmxtools
                                               com.sun.jmx/jmxri]]
-                 [com.taoensso/timbre "3.3.1"]
+                 [com.taoensso/timbre "3.4.0"]
 
                  [environ "1.0.0"]
 
