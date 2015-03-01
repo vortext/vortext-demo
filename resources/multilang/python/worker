@@ -25,8 +25,11 @@ def run_server(options, handler):
     while True:
         request = worker.recv(reply)
         if request is None:
-            break # Worker was interrupted
-        reply = handler.handle(request)
+            break  # Worker was interrupted
+        try:
+            reply = handler.handle(request)
+        except:
+            continue
 
 def main():
     p = optparse.OptionParser(

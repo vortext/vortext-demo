@@ -102,7 +102,7 @@ public class Broker implements Runnable {
     /**
      * Main broker work happens here
      */
-    public void run() {
+    public synchronized void run() {
         while (!Thread.currentThread().isInterrupted()) {
             ZMQ.Poller items = new ZMQ.Poller(1);
             items.register(socket, ZMQ.Poller.POLLIN);
@@ -114,22 +114,26 @@ public class Broker implements Runnable {
                 if (msg == null) {
                     break; // Interrupted
                 }
+
                 ZFrame sender = msg.pop();
                 ZFrame empty = msg.pop();
                 ZFrame header = msg.pop();
 
-                if (MDP.C_CLIENT.frameEquals(header)) {
-                    processClient(sender, msg);
-                } else if (MDP.W_WORKER.frameEquals(header))
-                    processWorker(sender, msg);
-                else {
+                if (header == null) {
                     msg.destroy();
+                } else {
+                    if (MDP.C_CLIENT.frameEquals(header)) {
+                        processClient(sender, msg);
+                    } else if (MDP.W_WORKER.frameEquals(header)) {
+                        processWorker(sender, msg);
+                    } else {
+                        msg.destroy();
+                    }
+
+                    sender.destroy();
+                    empty.destroy();
+                    header.destroy();
                 }
-
-                sender.destroy();
-                empty.destroy();
-                header.destroy();
-
             }
             purgeWorkers();
             sendHeartbeats();

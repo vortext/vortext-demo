@@ -4,7 +4,6 @@
   (:require [taoensso.timbre :as timbre]
             [environ.core :refer :all]
             [clojure.core.async :as async :refer [mult map< filter< tap chan sliding-buffer go <! >! thread >!!]]
-            [vortext.flake :as flake]
             [vortext.zmq :as zmq]
             [clojure.java.io :as io]))
 
@@ -45,7 +44,7 @@
   [name payload]
   (let [client (new-client-memoize (env :broker-socket))
         c (chan)
-        id (flake/url-safe-id)
+        id (str (java.util.UUID/randomUUID))
         request (doto (ZMsg.) (.add payload))]
     (timbre/debug "sending request to" name "with id" id)
     (.send client name (.getBytes id) request)

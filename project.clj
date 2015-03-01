@@ -37,10 +37,6 @@
 
                  [prismatic/plumbing "0.3.7"]
 
-                 [potemkin "0.3.11"]
-                 [primitive-math "0.1.4"]
-                 [commons-codec/commons-codec "1.10"]
-
                  ;; serialization libraries
                  [cheshire "5.4.0"]
 
