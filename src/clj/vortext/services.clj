@@ -19,16 +19,15 @@
 (def listen-for
   ((fn []
      (let [client (new-client-memoize (env :broker-socket))
-           replies (chan (sliding-buffer 64))
+           replies (chan)
            mult (mult replies)]
-       (thread
-         (loop [reply (.recv client)]
-           (let [[_id result] (zmq/from-zmsg reply)
-                 id (String. _id)]
-             (timbre/debug "received reply for request id" id)
-             (>!! replies {:id id :result result})
-             (.destroy reply))
-           (recur (.recv client))))
+       (async/go-loop [reply (.recv client)]
+         (let [[_id result] (zmq/from-zmsg reply)
+               id (String. _id)]
+           (timbre/debug "received reply for request id" id)
+           (>! replies {:id id :result result})
+           (.destroy reply))
+         (recur (.recv client)))
        (fn [id]
          (let [u (chan)]
            (map< :result (filter< (fn [reply] (= id (:id reply))) (tap mult u)))))))))
