@@ -19,5 +19,5 @@
    :text          (fnk [source] (js "ebm/document_parser.js" source :timeout 4000))
    :risk-of-bias  (fnk [text] (py "ebm.risk_of_bias" text :timeout 5000))
    :pico          (fnk [text] (py "ebm.pico" text))
-   :sink          (fnk [pico risk-of-bias] (json/encode (merge-marginalia pico risk-of-bias)))
+   :sink          (fnk [pico risk-of-bias] (json/encode (merge-marginalia risk-of-bias pico)))
    })
