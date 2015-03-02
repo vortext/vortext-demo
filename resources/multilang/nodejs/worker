@@ -35,7 +35,7 @@ function runServer(handler) {
       Q.when(result, function(data) {
         rep.reply(data);
       }, function(err) {
-	console.error("Failed to process", err);
+	      console.error("Failed to process", err);
       });
     } catch (err) {
       console.error("Failed to process", err);

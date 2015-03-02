@@ -3,10 +3,12 @@
             [environ.core :refer [env]]
             [noir.util.middleware :refer :all]
             [selmer.middleware :refer [wrap-error-page]]
+            [ring.middleware.stacktrace :refer :all]
             [noir-exception.core :refer [wrap-internal-error wrap-exceptions]]))
 
 (def common-middleware
-  [wrap-strip-trailing-slash])
+  [wrap-strip-trailing-slash
+   wrap-stacktrace])
 
 (def development-middleware
   [wrap-error-page
