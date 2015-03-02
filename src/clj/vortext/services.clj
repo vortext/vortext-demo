@@ -11,26 +11,10 @@
                       "VERSION" (System/getProperty "vortext.version")})
 
 (defn new-client
-  [endpoint]
+  [endpoint name]
   (Client. endpoint))
 
 (def new-client-memoize (memoize new-client))
-
-(def listen-for
-  ((fn []
-     (let [client (new-client-memoize (env :broker-socket))
-           replies (chan)
-           mult (mult replies)]
-       (async/go-loop [reply (.recv client)]
-         (let [[_id result] (zmq/from-zmsg reply)
-               id (String. _id)]
-           (timbre/debug "received reply for request id" id)
-           (>! replies {:id id :result result})
-           (.destroy reply))
-         (recur (.recv client)))
-       (fn [id]
-         (let [u (chan)]
-           (map< :result (filter< (fn [reply] (= id (:id reply))) (tap mult u)))))))))
 
 (defn start!
   "Start the service broker"
@@ -41,13 +25,16 @@
 
 (defn rpc
   [name payload]
-  (let [client (new-client-memoize (env :broker-socket))
+  (let [client (new-client-memoize (env :broker-socket) name)
         c (chan)
-        id (str (java.util.UUID/randomUUID))
         request (doto (ZMsg.) (.add payload))]
-    (timbre/debug "sending request to" name "with id" id)
-    (.send client name (.getBytes id) request)
-    (listen-for id)))
+    (timbre/debug "sending request to" name)
+    (go
+      (let [reply (.send client name request)]
+        (if (= reply nil)
+          (.destroy reply)
+          (>! c (zmq/from-zmsg reply)))))
+    c))
 
 (defprotocol RemoteProcedure
   (shutdown [self])

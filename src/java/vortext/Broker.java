@@ -102,7 +102,7 @@ public class Broker implements Runnable {
     /**
      * Main broker work happens here
      */
-    public synchronized void run() {
+    public void run() {
         while (!Thread.currentThread().isInterrupted()) {
             ZMQ.Poller items = new ZMQ.Poller(1);
             items.register(socket, ZMQ.Poller.POLLIN);
