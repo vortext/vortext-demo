@@ -59,7 +59,6 @@ define(function (require) {
   marginaliaModel.on("all", function(e, obj) {
     switch(e) {
     case "reset":
-      documentModel.annotate(marginaliaModel.getActive());
       marginaliaComponent.forceUpdate();
       break;
     case "annotations:change":
@@ -94,6 +93,7 @@ define(function (require) {
       }
       documentComponent.forceUpdate();
       break;
+    case "pages:ready":
     case "pages:change:annotations":
       documentComponent.forceUpdate();
       break;
