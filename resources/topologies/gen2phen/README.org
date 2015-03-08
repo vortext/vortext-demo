@@ -1,0 +1,19 @@
+* vortext-ebm
+
+
+Topology for predicting Risk of Bias in [[https://github.com/joelkuiper/spa][Spá]] with [[https://github.com/joelkuiper/vortext][Svar]]
+
+Place the trained models in the models folder.
+
+[[https://github.com/mozilla/pdf.js/][pdf.js]] is needed for text extraction that is consistent with Spá and is included as a submodule.
+
+#+BEGIN_SRC
+ git clone <this repo>
+ cd <your folder>
+ git submodule init
+ git submodule update
+ cd pdfjs
+
+ # Compile pdf.js 
+ node make singlefile
+#+END_SRC
