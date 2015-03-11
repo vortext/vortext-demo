@@ -36,7 +36,7 @@ define(function (require) {
           <div>
             <ul className="title-area">
               <li className="name">
-                <h1><a href="/"><img src="/img/logo.png" />vortext</a></h1>
+                <h1><a href="/"><img src="/img/logo.png" />RobotReviewer</a></h1>
               </li>
             </ul>
 

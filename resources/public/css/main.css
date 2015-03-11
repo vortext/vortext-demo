@@ -1,11 +1,9 @@
 @import url("../scripts/spa/css/main.css");
 
 .title-area h1 span {
-    font-variant: small-caps;
-    letter-spacing: -0.025em;
-    font-weight: 300;
 }
 
 .title-area img {
-    margin-right: 4px;
+    margin-right: 5px;
+    margin-bottom: 6px;
 }
