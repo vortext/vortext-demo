@@ -89,10 +89,14 @@ define(function (require) {
       marginaliaModel.reset();
       break;
     case "pages:change:state":
-      if(obj.get("state") > window.RenderingStates.HAS_PAGE) {
+      if(obj.get("state") === window.RenderingStates.HAS_CONTENT) {
         documentModel.annotate(marginaliaModel.getActive());
       }
       documentComponent.forceUpdate();
+      break;
+    case "pages:ready":
+      documentModel.annotate(marginaliaModel.getActive());
+      marginaliaComponent.forceUpdate();
       break;
     case "pages:change:annotations":
       documentComponent.forceUpdate();

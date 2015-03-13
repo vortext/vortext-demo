@@ -1,33 +1,27 @@
 <!DOCTYPE html>
 <html class="view">
-  <head>
-    <title>Vortext for Evidence Based Medicine</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google" content="notranslate">
+  <title>Robot Reviewer (powered by Vortext Systems)</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="google" content="notranslate">
 
-    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
 
-    <link href="/css/main.css" rel="stylesheet">
-    <script src="/scripts/modernizr.js"></script>
+  <script src="/scripts/modernizr.js"></script>
 
-    <script data-main="/scripts/main" src="/scripts/require.js"></script>
-    <script>
-     CSRF_TOKEN = "{% csrf-token %}";
-    </script>
+  <script data-main="/scripts/main" src="/scripts/require.js"></script>
+  <script>
+   CSRF_TOKEN = "{% csrf-token %}";
+  </script>
 
-  </head>
+  <nav id="top-bar" class="top-bar" data-topbar role="navigation">
+  </nav>
 
-  <body class="antialiased">
-
-    <nav id="top-bar" class="top-bar" data-topbar role="navigation">
-    </nav>
-
-    <main>
-      <div id="viewer"></div>
-      <div id="side">
-        <div id="marginalia"></div>
-      </div>
-    </main>
-  </body>
+  <main>
+    <div id="viewer"></div>
+    <div id="side">
+      <div id="marginalia"></div>
+    </div>
+  </main>
+  <link href="/css/main.css" rel="stylesheet">
+  <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
 </html>

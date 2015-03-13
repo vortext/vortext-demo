@@ -41,7 +41,6 @@
   []
   (timbre/info "shutting down...")
   (services/shutdown!)
-  (shutdown-agents)
   (timbre/info "shutdown complete!"))
 
 (def web-routes
