@@ -1,0 +1,104 @@
+* Background
+This repository contains the code for demonstrating various machine learning models.
+It currently power [[https://robot-reviewer.vortext.systems/][Robot-Reviewer]], a system for automatically extracting Risk of Bias from Randomized Controlled Trial publications.
+
+In essence it's [[https://github.com/vortext/vortext][Vortext]] stripped down to essentials, and with the ability to run predictions in various programming languages.
+At some point the functionality between these two will hopefully converge.
+Currently, we are looking for seed-investors to develop this further, if you're interested drop us a line at [[http://vortext.systems][vortext.systems]].
+
+* Technical overview
+** Client side
+See the [[https://github.com/vortext/spa][Spá repository]] for an overview of used technology.
+
+** Server side
+Unlike the regular [[https://github.com/vortext/vortext][Vortext repository,]] this set-up is a bit more involved.
+To run the predictions we make use of a [[https://en.wikipedia.org/wiki/Polyglot_%28computing%29][polyglot approach]].
+The reason for this is fairly simple: to make the predictions congruent with the client-side [[https://mozilla.github.io/pdf.js/][PDF.js]] we had to run PDF.js on the server-side (via [[https://nodejs.org/][NodeJS]]), but Javascript doesn't have nice machine learning libraries like Python or R does so we wanted to use those languages for the machine learning.
+However, Javascript, Python, and R are terrible languages for scalable full-stack development, so we picked Clojure (a Lisp) for that.
+
+To make this work we opted for a custom [[https://en.wikipedia.org/wiki/Remote_procedure_call][Remote Procedure Call]] framework.
+Clojure is our glue and runs all the web-facing stuff.
+But, Clojure will call the NodeJS and Python (or R in the future) processes over [[http://zeromq.org/][ZeroMQ]].
+The dependent processes can run as separate processes, but in practice we them start as children of the Clojure app.
+To call the different processes (services, really) we use the [[http://zguide.zeromq.org/page:all#Service-Oriented-Reliable-Queuing-Majordomo-Pattern][Majordomo Pattern]].
+
+It is recommended to read-up on the [[http://zguide.zeromq.org/page:all][ZeroMQ documentation]] (which doubles as an excellent intro into distributed systems) when developing this part of the software.
+We chose ZeroMQ for its wide range of supported languages, light weight and proven effectiveness.
+However, ZeroMQ has it's own hangups and we're actively considering alternatives.
+
+But, how to do you tie all this together without it becoming a complete mess?
+Well, admittedly it is a bit of a mess now, but for different reasons.
+Anyway, the way we tie it together is by using Directed Acyclic Graphs (DAG) as an abstraction over the different processing steps.
+We stole this idea from [[https://github.com/prismatic/plumbing][Prismatic Graph]] and Apache Storm.
+So, if you want to develop your own predictors it is vital to read-up on "[[http://blog.getprismatic.com/graph-abstractions-for-structured-computation/][Graph: Abstractions for Structured Computation]]".
+We call these graphs /topologies/ (a term borrowed from Storm).
+
+*** Defining topologies
+A topology defines the flow from =source= to =sink=.
+The =source= is the incoming HTTP POST request.
+The =sink= is the data to be returned.
+
+To define this flow you can make a topology like this:
+
+#+BEGIN_SRC clojure
+(def topology
+  {:source        (fnk [body] (slurp body))
+   :incremented   (fnk [source] (py "example.add_one" source))
+   :doubled       (fnk [incremented] (js "example/multiply.js" incremented))
+   :sink          (fnk [doubled] (str "result:" (String. doubled)))
+   })
+#+END_SRC
+
+This will take the body, increment the number in Python, and double it in Javascript.
+The Python file looks like this
+
+#+BEGIN_SRC python
+import sys
+sys.path.append('../../multilang/python')
+from abstract_handler import AbstractHandler
+
+class Handler(AbstractHandler):
+    title = "Add one"
+
+    def __init__(self):
+        # Setup here
+        print "Hello, I'm adding one"
+
+    def handle(self, input):
+        return str(int(input) + 1)
+#+END_SRC
+
+And similarly the Javascript
+
+#+BEGIN_SRC js
+// You can do all sorts of set-up here
+console.log("Hi!, I'll multiply the input");
+
+function handler(input) {
+  return (parseInt(input) * 2) + ""; // Must return a string
+}
+
+module.exports = handler;
+#+END_SRC
+
+The handle function gets the raw input body, and returns the incremented string.
+We make no assumptions about the serialization of the input and the output, we currently use JSON ourselves, but have used [[https://developers.google.com/protocol-buffers/][ProtocolBuffers]] in the past.
+
+Take a look in the [[https://github.com/vortext/vortext-demo/tree/develop/resources/multilang][multilang folder]] for implementation details.
+The example topology is [[https://github.com/vortext/vortext-demo/tree/develop/resources/topologies/example][found here]].
+
+The =ebm= branch of this repository contains a more complete example, currently used to run Risk of Bias and PICO predictions.
+To add new predictors it is recommended to branch off =develop= and create your own topology folders.
+The topologies themselves get called by name from the dispatcher on the client-side (e.g. here in the [[https://github.com/vortext/vortext-demo/blob/ebm/resources/public/scripts/app.js#L29-L36][ebm branch]]).
+But this is subject to change.
+
+
+* New to Clojure?
+The server side is written in [[http://clojure.org/][Clojure]] and uses PostgreSQL as the database.
+If you are new to Clojure the code might look unfamiliar.
+But, Clojure is a wonderful language, and if you are interested in learning more we recommend the following resources:
+- [[https://yogthos.github.io/ClojureDistilled.html][Clojure Distilled]]
+- [[http://www.braveclojure.com/][Clojure for the brave and true]]
+- [[https://aphyr.com/tags/Clojure-from-the-ground-up][Clojure from the ground up]]
+
+We use [[http://www.luminusweb.net/][Luminus]] as a basis for many parts, so we recommended reading their documentation as well.
