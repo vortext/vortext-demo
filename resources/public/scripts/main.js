@@ -13,7 +13,7 @@ require.config({
     'marked': 'spa/scripts/vendor/marked',
     'backbone': 'spa/scripts/vendor/backbone',
 
-    'react': "spa/scripts/vendor/react",
+    'react': "spa/scripts/vendor/react-dev",
     'immutable': "spa/scripts/vendor/immutable",
 
     'JSXTransformer': "spa/scripts/vendor/JSXTransformer",
