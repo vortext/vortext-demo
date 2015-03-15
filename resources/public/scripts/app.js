@@ -59,6 +59,7 @@ define(function (require) {
   marginaliaModel.on("all", function(e, obj) {
     switch(e) {
     case "reset":
+      documentModel.annotate(marginaliaModel.getActive());
       marginaliaComponent.forceUpdate();
       break;
     case "annotations:change":
@@ -88,13 +89,14 @@ define(function (require) {
       marginaliaModel.reset();
       break;
     case "pages:change:state":
-      if(obj.get("state") > window.RenderingStates.HAS_PAGE) {
+      if(obj.get("state") == window.RenderingStates.HAS_CONTENT) {
         documentModel.annotate(marginaliaModel.getActive());
       }
       documentComponent.forceUpdate();
       break;
     case "pages:ready":
     case "pages:change:annotations":
+      documentModel.annotate(marginaliaModel.getActive());
       documentComponent.forceUpdate();
       break;
     default:
