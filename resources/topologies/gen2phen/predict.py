@@ -5,11 +5,20 @@ import cPickle as pickle
 import sklearn
 import json
 
+import itertools
+from itertools import chain, repeat, islice
+
 import ner
 
 from nltk.corpus import stopwords
 
 import nltk.tokenize
+
+from collections import defaultdict
+
+from ftfy import fix_text
+
+import spacy.en
 
 sys.path.append('../../multilang/python')
 sys.path.append(os.path.abspath("resources/topologies/gen2phen/"))
@@ -40,6 +49,7 @@ class Handler():
     }
 
     def load_model(self, filename):
+        logging.info("loading model %s" % (filename))
         with open(filename, 'rb') as f:
             data = pickle.load(f)
         return data
@@ -47,6 +57,69 @@ class Handler():
     def __init__(self):
         script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
         self.ner_tagger = ner.SocketNER(host='localhost', port=9191)
+        self.sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+        self.hgvs_regexes = self.hgvs_regex.values()
+        self.nlp = spacy.en.English()
+        self.vectorizer = self.load_model(os.path.join(script_dir, "models/vectorizer.pck"))
+        self.model = self.load_model(os.path.join(script_dir, "models/model.pck"))
+
+    def get_sentences(self, document):
+        return self.sent_tokenizer.span_tokenize(document, realign_boundaries=True)
+
+    def get_entities(self, sent):
+        entities = defaultdict(list)
+        entities.update(self.ner_tagger.get_entities(sent))
+        for tok in sent.split():
+            if any([re.match(expr, tok) for expr in self.hgvs_regexes]):
+                entities["GENE"].append(tok)
+        return entities
+
+    def get_tokens(self, sent):
+        return self.nlp(sent, tag=True, parse=False)
+
+    def pad_infinite(self, iterable, padding=None):
+        return chain(iterable, repeat(padding))
+
+    def pad(self, iterable, size, padding=None):
+        return islice(self.pad_infinite(iterable, padding), size)
+
+    def entity_tokens(self, entities, t):
+        return [([tok.norm_ for tok in tokens], t) for tokens in [self.nlp(concept, parse=False, tag=True) for concept in entities[t]]]
+
+    def get_feature_dicts(self, tokens, entities):
+        token_strings = [tok.norm_ for tok in tokens]
+        pos = [tok.norm_ + "/" + tok.pos_ for tok in tokens]
+
+        gene_tokens = self.entity_tokens(entities, "GENE")
+        disease_tokens = self.entity_tokens(entities, "DISEASE")
+
+        pairs = [sorted(pair, key=lambda x: x[0]) for pair in itertools.product(gene_tokens, disease_tokens)]
+
+        features = []
+        for pair in pairs:
+            for window in range(0,3):
+                feature_dict = {"first": pair[0][1], "second": pair[1][1]}
+
+                try:
+                    start = min(token_strings.index(pair[0][0][-1]) + 1, len(token_strings))
+                    stop = token_strings.index(pair[1][0][0])
+                    bound = sorted((start, stop))
+
+                    feature_dict["pos"] = " ".join(pos[bound[0]:bound[1]])
+
+                    left_window = token_strings[max(0, start - window - 1):start]
+                    right_window = token_strings[stop + 1:min(len(token_strings) - 1, stop + window + 1)]
+
+                    feature_dict["left"] = " ".join(self.pad(left_window, window, "#PAD#"))
+                    feature_dict["right"] = " ".join(self.pad(right_window, window, "#PAD"))
+
+                    # FIXME: add basic syntactic features (lift more from Mintz paper)
+                    features.append(feature_dict)
+
+                except Exception, e:
+                    continue
+        return features
+
 
     def handle(self, payload):
         document = json.loads(payload)
@@ -55,10 +128,7 @@ class Handler():
 
         annotations = []
 
-        sent_tokenize = nltk.data.load('tokenizers/punkt/english.pickle')
-        sents = sent_tokenize.span_tokenize(document_text,realign_boundaries = True)
-
-        word_tokenizer = nltk.tokenize.regexp.WhitespaceTokenizer()
+        sents = self.get_sentences(document_text)
 
         def add_annotation(sent, sent_text):
             annotations.append({"uuid": str(uuid.uuid1()),
@@ -69,24 +139,26 @@ class Handler():
 
         for sent in sents:
             sent_text = document_text[sent[0]:sent[1]]
+            references = ["References", "references", "REFERENCES", "R E F E R E N C E S"]
+            if any(s in sent_text for s in references):
+                # Don't bother below this point, this assumes the pdf is linearized, but whatever
+                break
             entities = {}
 
-            hgvs_regexes = self.hgvs_regex.values()
-
             try:
-                entities = self.ner_tagger.get_entities(sent_text.encode("utf-8", errors="ignore"))
+                entities = self.get_entities(sent_text)
             except Exception, e:
                 logging.error(e)
                 continue
 
             if "DISEASE" in entities and "GENE" in entities:
-                logging.info(entities)
-                add_annotation(sent, sent_text)
-            elif "DISEASE" in entities:
-                words = word_tokenizer.tokenize(sent_text)
-                logging.debug("disease but no gene, checking for hgvs in %s" % sent_text)
-                if any([any([re.match(expr, word) for word in words]) for expr in hgvs_regexes]):
-                    logging.info("adding %s" % sent_text)
+                tokens = self.get_tokens(sent_text)
+                feature_dict = self.get_feature_dicts(tokens, entities)
+                if not feature_dict:
+                    continue
+                X = self.vectorizer.transform(feature_dict)
+                predict = self.model.predict(X)
+                if any(predict):
                     add_annotation(sent, sent_text)
 
         output = [{
