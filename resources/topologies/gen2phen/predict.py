@@ -23,6 +23,30 @@ import spacy.en
 sys.path.append('../../multilang/python')
 sys.path.append(os.path.abspath("resources/topologies/gen2phen/"))
 
+
+nlp = spacy.en.English()
+
+from spacy.parts_of_speech import DET, NUM, PUNCT, X, PRT, NO_TAG, EOL
+def is_eligable(tok):
+    exclude = [DET, NUM, PUNCT, X, PRT, NO_TAG, EOL]
+    return tok.pos not in exclude and tok.norm_.isalnum()
+
+def tokenize(s):
+    included = []
+    excluded = []
+    for tok in nlp(s, parse=False, tag=True):
+        if is_eligable(tok):
+            included.append(tok)
+        else:
+            excluded.append(tok)
+    return included, excluded
+
+
+sparse = re.compile("\s{3,}")
+def is_sparse(sent):
+    return True if re.search(sparse, sent) else False
+
+
 class Handler():
 
     title = "Genome-disease relations"
@@ -59,9 +83,7 @@ class Handler():
         self.ner_tagger = ner.SocketNER(host='localhost', port=9191)
         self.sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
         self.hgvs_regexes = self.hgvs_regex.values()
-        self.nlp = spacy.en.English()
-        self.vectorizer = self.load_model(os.path.join(script_dir, "models/vectorizer.pck"))
-        self.model = self.load_model(os.path.join(script_dir, "models/model.pck"))
+        self.model, self.vectorizer = self.load_model(os.path.join(script_dir, "models/model.pck"))
 
     def get_sentences(self, document):
         return self.sent_tokenizer.span_tokenize(document, realign_boundaries=True)
@@ -74,31 +96,33 @@ class Handler():
                 entities["GENE"].append(tok)
         return entities
 
-    def get_tokens(self, sent):
-        return self.nlp(sent, tag=True, parse=False)
-
     def pad_infinite(self, iterable, padding=None):
         return chain(iterable, repeat(padding))
 
     def pad(self, iterable, size, padding=None):
         return islice(self.pad_infinite(iterable, padding), size)
 
-    def entity_tokens(self, entities, t):
-        return [([tok.norm_ for tok in tokens], t) for tokens in [self.nlp(concept, parse=False, tag=True) for concept in entities[t]]]
+    def get_feature_dicts(self, sent, entities):
+        tokens, excluded = tokenize(sent)
+        is_junk = (float(len(excluded)) / float(len(tokens))) > 0.8
 
-    def get_feature_dicts(self, tokens, entities):
         token_strings = [tok.norm_ for tok in tokens]
         pos = [tok.norm_ + "/" + tok.pos_ for tok in tokens]
 
-        gene_tokens = self.entity_tokens(entities, "GENE")
-        disease_tokens = self.entity_tokens(entities, "DISEASE")
+        gene_tokens = [([tok.norm_ for tok in tokens], "GENE") for tokens in [nlp(concept, parse=False, tag=False) for concept in entities["GENE"]]]
+        disease_tokens = [([tok.norm_ for tok in tokens], "DISEASE") for tokens in [nlp(concept, parse=False, tag=False) for concept in entities["DISEASE"]]]
 
         pairs = [sorted(pair, key=lambda x: x[0]) for pair in itertools.product(gene_tokens, disease_tokens)]
+
 
         features = []
         for pair in pairs:
             for window in range(0,3):
-                feature_dict = {"first": pair[0][1], "second": pair[1][1]}
+                feature_dict = {
+                    "sparse": is_sparse(sent),
+                    "junk": is_junk,
+                    "first": pair[0][1],
+                    "second": pair[1][1]}
 
                 try:
                     start = min(token_strings.index(pair[0][0][-1]) + 1, len(token_strings))
@@ -116,9 +140,10 @@ class Handler():
                     # FIXME: add basic syntactic features (lift more from Mintz paper)
                     features.append(feature_dict)
 
-                except Exception, e:
+                except Exception:
                     continue
         return features
+
 
 
     def handle(self, payload):
@@ -126,46 +151,51 @@ class Handler():
 
         document_text = " ".join(document["pages"])
 
-        annotations = []
-
         sents = self.get_sentences(document_text)
 
-        def add_annotation(sent, sent_text):
-            annotations.append({"uuid": str(uuid.uuid1()),
-                                "position": sent[0],
-                                "prefix": document_text[max(sent[0] - 32, 0):sent[0]],
-                                "suffix": document_text[sent[1]:min(sent[1] + 32, len(document_text))],
-                                "content": sent_text})
+        annotations = []
+        def annotation(sent, sent_text):
+            return {"uuid": str(uuid.uuid1()),
+                    "position": sent[0],
+                    "prefix": document_text[max(sent[0] - 32, 0):sent[0]],
+                    "suffix": document_text[sent[1]:min(sent[1] + 32, len(document_text))],
+                    "content": sent_text}
+
+        predictions = defaultdict(set)
 
         for sent in sents:
             sent_text = document_text[sent[0]:sent[1]]
-            references = ["References", "references", "REFERENCES", "R E F E R E N C E S"]
-            if any(s in sent_text for s in references):
-                # Don't bother below this point, this assumes the pdf is linearized, but whatever
-                break
             entities = {}
 
+            s = fix_text(unicode(sent_text))
             try:
-                entities = self.get_entities(sent_text)
+                entities = self.get_entities(s)
             except Exception, e:
                 logging.error(e)
                 continue
 
             if "DISEASE" in entities and "GENE" in entities:
-                tokens = self.get_tokens(sent_text)
-                feature_dict = self.get_feature_dicts(tokens, entities)
+                feature_dict = self.get_feature_dicts(s, entities)
                 if not feature_dict:
                     continue
                 X = self.vectorizer.transform(feature_dict)
                 predict = self.model.predict(X)
                 if any(predict):
-                    add_annotation(sent, sent_text)
+                    pairs = itertools.product(entities["GENE"], entities["DISEASE"])
 
-        output = [{
-            "annotations": annotations,
-            "description": "**This is *very* experimental**",
-            "title": "gen2phen",
-            "type": self.title
-        }]
+                    for pair in pairs:
+                        k = pair[0] + " - " + pair[1]
+                        predictions[k] = predictions[k].union([(sent, sent_text)])
+
+
+        output = []
+        for key, annotations in reversed(sorted(predictions.items(), key=lambda x: len(x[1]))):
+            out = {
+                "type": "Genome-disease relation prediction",
+                "title": key,
+                "description": "Possible association",
+                "annotations": [annotation(sent,sent_text) for sent, sent_text in annotations]
+            }
+            output.append(out)
 
         return json.dumps({"marginalia": output})
