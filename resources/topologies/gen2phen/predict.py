@@ -18,34 +18,11 @@ from collections import defaultdict
 
 from ftfy import fix_text
 
-import spacy.en
 
 sys.path.append('../../multilang/python')
 sys.path.append(os.path.abspath("resources/topologies/gen2phen/"))
 
-
-nlp = spacy.en.English()
-
-from spacy.parts_of_speech import DET, NUM, PUNCT, X, PRT, NO_TAG, EOL
-def is_eligable(tok):
-    exclude = [DET, NUM, PUNCT, X, PRT, NO_TAG, EOL]
-    return tok.pos not in exclude and tok.norm_.isalnum()
-
-def tokenize(s):
-    included = []
-    excluded = []
-    for tok in nlp(s, parse=False, tag=True):
-        if is_eligable(tok):
-            included.append(tok)
-        else:
-            excluded.append(tok)
-    return included, excluded
-
-
-sparse = re.compile("\s{3,}")
-def is_sparse(sent):
-    return True if re.search(sparse, sent) else False
-
+from mintz_model2 import tokenize, MintzModel
 
 class Handler():
 
@@ -80,71 +57,16 @@ class Handler():
 
     def __init__(self):
         script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
-        self.ner_tagger = ner.SocketNER(host='localhost', port=9191)
-        self.sent_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
         self.hgvs_regexes = self.hgvs_regex.values()
-        self.model, self.vectorizer = self.load_model(os.path.join(script_dir, "models/model.pck"))
+
+        self.sent_tokenize = nltk.data.load('tokenizers/punkt/english.pickle')
+
+        logging.info("constructing model")
+        self.model = MintzModel(script_dir);
+        self.cls, self.vectorizer = self.load_model(os.path.join(script_dir, "models/model.pck"))
 
     def get_sentences(self, document):
-        return self.sent_tokenizer.span_tokenize(document, realign_boundaries=True)
-
-    def get_entities(self, sent):
-        entities = defaultdict(list)
-        entities.update(self.ner_tagger.get_entities(sent))
-        for tok in sent.split():
-            if any([re.match(expr, tok) for expr in self.hgvs_regexes]):
-                entities["GENE"].append(tok)
-        return entities
-
-    def pad_infinite(self, iterable, padding=None):
-        return chain(iterable, repeat(padding))
-
-    def pad(self, iterable, size, padding=None):
-        return islice(self.pad_infinite(iterable, padding), size)
-
-    def get_feature_dicts(self, sent, entities):
-        tokens, excluded = tokenize(sent)
-        is_junk = (float(len(excluded)) / float(len(tokens))) > 0.8
-
-        token_strings = [tok.norm_ for tok in tokens]
-        pos = [tok.norm_ + "/" + tok.pos_ for tok in tokens]
-
-        gene_tokens = [([tok.norm_ for tok in tokens], "GENE") for tokens in [nlp(concept, parse=False, tag=False) for concept in entities["GENE"]]]
-        disease_tokens = [([tok.norm_ for tok in tokens], "DISEASE") for tokens in [nlp(concept, parse=False, tag=False) for concept in entities["DISEASE"]]]
-
-        pairs = [sorted(pair, key=lambda x: x[0]) for pair in itertools.product(gene_tokens, disease_tokens)]
-
-
-        features = []
-        for pair in pairs:
-            for window in range(0,3):
-                feature_dict = {
-                    "sparse": is_sparse(sent),
-                    "junk": is_junk,
-                    "first": pair[0][1],
-                    "second": pair[1][1]}
-
-                try:
-                    start = min(token_strings.index(pair[0][0][-1]) + 1, len(token_strings))
-                    stop = token_strings.index(pair[1][0][0])
-                    bound = sorted((start, stop))
-
-                    feature_dict["pos"] = " ".join(pos[bound[0]:bound[1]])
-
-                    left_window = token_strings[max(0, start - window - 1):start]
-                    right_window = token_strings[stop + 1:min(len(token_strings) - 1, stop + window + 1)]
-
-                    feature_dict["left"] = " ".join(self.pad(left_window, window, "#PAD#"))
-                    feature_dict["right"] = " ".join(self.pad(right_window, window, "#PAD"))
-
-                    # FIXME: add basic syntactic features (lift more from Mintz paper)
-                    features.append(feature_dict)
-
-                except Exception:
-                    continue
-        return features
-
-
+        return self.sent_tokenize.span_tokenize(document, realign_boundaries=True)
 
     def handle(self, payload):
         document = json.loads(payload)
@@ -165,26 +87,27 @@ class Handler():
 
         for sent in sents:
             sent_text = document_text[sent[0]:sent[1]]
-            entities = {}
 
             s = fix_text(unicode(sent_text))
-            try:
-                entities = self.get_entities(s)
-            except Exception, e:
-                logging.error(e)
-                continue
 
-            if "DISEASE" in entities and "GENE" in entities:
-                feature_dict = self.get_feature_dicts(s, entities)
+            included, excluded = tokenize(s)
+            words = [t.norm_ for t in included]
+
+            entities = self.model.get_entities(words, use_ner=True)
+
+            if "DISEASE" in entities and "GENE" in entities and len(included):
+                feature_dict = self.model.get_feature_dicts(s, included, excluded, entities)
                 if not feature_dict:
                     continue
                 X = self.vectorizer.transform(feature_dict)
-                predict = self.model.predict(X)
+                predict = self.cls.predict(X)
+
                 if any(predict):
                     pairs = itertools.product(entities["GENE"], entities["DISEASE"])
-
                     for pair in pairs:
-                        k = pair[0] + " - " + pair[1]
+                        gene = " ".join(words[pair[0][0]:pair[0][1]])
+                        disease = " ".join(words[pair[1][0]:pair[1][1]])
+                        k = gene + " - " + disease
                         predictions[k] = predictions[k].union([(sent, sent_text)])
 
 
