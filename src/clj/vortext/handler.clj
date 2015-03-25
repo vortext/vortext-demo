@@ -11,7 +11,6 @@
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [vortext.routes.topology :refer [topology-routes]]
             [vortext.routes.home :refer [home-routes]]
-            [vortext.flake :as flake]
             [vortext.services :as services]))
 
 (defroutes
@@ -34,7 +33,6 @@
   (if (env :dev) (selmer.parser/cache-off!))
   (selmer.parser/add-tag! :csrf-token (fn [_ _] *anti-forgery-token*))
   (services/start!)
-  (flake/init!)
   (timbre/info "started successfully"))
 
 (defn destroy!
