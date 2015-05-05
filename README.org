@@ -88,11 +88,52 @@ Take a look in the [[https://github.com/vortext/vortext-demo/tree/develop/resour
 The example topology is [[https://github.com/vortext/vortext-demo/tree/develop/resources/topologies/example][found here]].
 
 The =ebm= branch of this repository contains a more complete example, currently used to run Risk of Bias and PICO predictions.
-To add new predictors it is recommended to branch off =develop= and create your own topology folders.
+To add new predictors it is recommended to branch off =devlop= and create your own topology folders.
 The topologies themselves get called by name from the dispatcher on the client-side (e.g. here in the [[https://github.com/vortext/vortext-demo/blob/ebm/resources/public/scripts/app.js#L29-L36][ebm branch]]).
 But this is subject to change.
+* Development prerequisites
+** Mac OS X
+To develop the server we require [[%20http://leiningen.org/][leiningen]] which can be installed with [[http://brew.sh/][Homebrew]].
+We require at least Java JVM/JDK 1.8 and Leiningen 2.4.
 
+#+BEGIN_SRC
+ brew update # make sure you have recent versions
+ brew install leiningen # install via Homebrew
+#+END_SRC
 
+#+BEGIN_SRC
+ git clone <this repo>
+ cd <your folder>
+ lein deps # retrieve project dependencies
+ git submodule update --init --recursive
+
+ # Compile the PDF.js files
+ cd resources/public/scripts/spa/pdfjs
+ brew install node # install nodejs via Homebrew
+ npm install
+ node make generic
+   #+END_SRC
+
+Furthermore, to make the RPC stuff work we require the following
+
+#+BEGIN_SRC
+# OSX
+brew install zeromq
+
+# Alternatively, from source
+wget http://download.zeromq.org/zeromq-4.0.5.tar.gz
+tar zxvf zeromq-4.0.5.tar.gz
+cd zeromq-4.0.5 && ./configure
+cd zeromq-4.0.5 && make && make install
+rm -rf zeromq-4.0.5
+# NodeJS stuff
+RUN npm install q underscore zmq atob commander
+
+# Python
+RUN pip install pyzmq argparse
+#+END_SRC
+
+And, of course, any NodeJS or Python dependencies required by the topology (such as scikit, nltk, etc).
 * New to Clojure?
 The server side is written in [[http://clojure.org/][Clojure]] and uses PostgreSQL as the database.
 If you are new to Clojure the code might look unfamiliar.
@@ -102,3 +143,10 @@ But, Clojure is a wonderful language, and if you are interested in learning more
 - [[https://aphyr.com/tags/Clojure-from-the-ground-up][Clojure from the ground up]]
 
 We use [[http://www.luminusweb.net/][Luminus]] as a basis for many parts, so we recommended reading their documentation as well.
+* Contributing
+Currently this is a research object.
+The API and organizational structure are subject to change.
+Comments and suggestions are much appreciated.
+For code contributions: fork, branch, and send a pull request.
+* License
+Vortext Demo is open source, and licensed under [[http://gplv3.fsf.org/][GPLv3]]. See [[https://github.com/joelkuiper/spa/blob/master/LICENSE.md][LICENSE.md]] for more information.
