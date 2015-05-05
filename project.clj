@@ -1,5 +1,5 @@
 (defproject vortext "0.1.0-SNAPSHOT"
-  :description "A vortext instance for Evidence Based Medicine"
+  :description "A visualizer for predictions"
   :license {:name "GNU General Public License (GPL) v3"
             :url "https://www.gnu.org/copyleft/gpl.html"}
   :url "https://github.com/joelkuiper/vortext"
@@ -40,12 +40,13 @@
                  [cheshire "5.4.0"]
 
                  ;; ZeroMQ
-                 [org.zeromq/cljzmq "0.1.4" :exclusions [org.zeromq/jzmq]]]
-  :profiles {:dev
-             {:dependencies [[org.zeromq/jeromq "0.3.4"]]}
-             :production
-             {:dependencies [[org.zeromq/jzmq "3.1.0"]]
-              :jvm-opts ["-server"
-                         "-XX:+UseG1GC"
-                         "-Djava.library.path=/usr/lib:/usr/local/lib"]
-              :env {:dev false}}})
+                 [org.zeromq/cljzmq "0.1.4" :exclusions [org.zeromq/jzmq]]
+                 [org.zeromq/jeromq "0.3.4"]]
+
+  :uberjar-name "vortext-demo.jar"
+  :profiles {:production {:env {:dev false}}
+             :uberjar {:omit-source true
+                       :env {:dev false
+                             :production true}
+
+                       :aot :all}})
