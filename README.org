@@ -1,6 +1,6 @@
 * Background
 This repository contains the code for demonstrating various machine learning models.
-It currently power [[https://robot-reviewer.vortext.systems/][Robot-Reviewer]], a system for automatically extracting Risk of Bias from Randomized Controlled Trial publications.
+It currently powers [[https://robot-reviewer.vortext.systems/][Robot-Reviewer]], a system for automatically extracting Risk of Bias from Randomized Controlled Trial publications.
 
 In essence it's [[https://github.com/vortext/vortext][Vortext]] stripped down to essentials, and with the ability to run predictions in various programming languages.
 At some point the functionality between these two will hopefully converge.
@@ -26,9 +26,9 @@ It is recommended to read-up on the [[http://zguide.zeromq.org/page:all][ZeroMQ 
 We chose ZeroMQ for its wide range of supported languages, light weight and proven effectiveness.
 However, ZeroMQ has it's own hangups and we're actively considering alternatives.
 
-But, how to do you tie all this together without it becoming a complete mess?
+But, how do you tie all this together without it becoming a complete mess?
 Well, admittedly it is a bit of a mess now, but for different reasons.
-Anyway, the way we tie it together is by using Directed Acyclic Graphs (DAG) as an abstraction over the different processing steps.
+Anyway… the way we tie it together is by using Directed Acyclic Graphs (DAG) as an abstraction over the different processing steps.
 We stole this idea from [[https://github.com/prismatic/plumbing][Prismatic Graph]] and Apache Storm.
 So, if you want to develop your own predictors it is vital to read-up on "[[http://blog.getprismatic.com/graph-abstractions-for-structured-computation/][Graph: Abstractions for Structured Computation]]".
 We call these graphs /topologies/ (a term borrowed from Storm).
@@ -81,14 +81,14 @@ function handler(input) {
 module.exports = handler;
 #+END_SRC
 
-The handle function gets the raw input body, and returns the incremented string.
+The handle function gets the raw input body, and returns the new number as a string.
 We make no assumptions about the serialization of the input and the output, we currently use JSON ourselves, but have used [[https://developers.google.com/protocol-buffers/][ProtocolBuffers]] in the past.
 
 Take a look in the [[https://github.com/vortext/vortext-demo/tree/develop/resources/multilang][multilang folder]] for implementation details.
 The example topology is [[https://github.com/vortext/vortext-demo/tree/develop/resources/topologies/example][found here]].
 
 The =ebm= branch of this repository contains a more complete example, currently used to run Risk of Bias and PICO predictions.
-To add new predictors it is recommended to branch off =devlop= and create your own topology folders.
+To add new predictors it is recommended to branch off =develop= and create your own topology folders.
 The topologies themselves get called by name from the dispatcher on the client-side (e.g. here in the [[https://github.com/vortext/vortext-demo/blob/ebm/resources/public/scripts/app.js#L29-L36][ebm branch]]).
 But this is subject to change.
 * Development prerequisites
@@ -111,7 +111,7 @@ We require at least Java JVM/JDK 1.8 and Leiningen 2.4.
  cd resources/public/scripts/spa/pdfjs
  brew install node # install nodejs via Homebrew
  npm install
- node make generic
+ node make singlefile generic
    #+END_SRC
 
 Furthermore, to make the RPC stuff work we require the following
@@ -136,7 +136,7 @@ Furthermore, to make the RPC stuff work we require the following
 
 And, of course, any NodeJS or Python dependencies required by the topology (such as scikit, nltk, etc).
 * New to Clojure?
-The server side is written in [[http://clojure.org/][Clojure]] and uses PostgreSQL as the database.
+The server side is written in [[http://clojure.org/][Clojure]].
 If you are new to Clojure the code might look unfamiliar.
 But, Clojure is a wonderful language, and if you are interested in learning more we recommend the following resources:
 - [[https://yogthos.github.io/ClojureDistilled.html][Clojure Distilled]]
