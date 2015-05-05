@@ -135,6 +135,8 @@ Furthermore, to make the RPC stuff work we require the following
 #+END_SRC
 
 And, of course, any NodeJS or Python dependencies required by the topology (such as scikit, nltk, etc).
+
+To start the system run  =lein run start --port 8080=, which will start the server on 8080.
 * New to Clojure?
 The server side is written in [[http://clojure.org/][Clojure]].
 If you are new to Clojure the code might look unfamiliar.
