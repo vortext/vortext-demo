@@ -104,11 +104,13 @@ def persist(file_name):
 nlp = spacy.en.English()
 from spacy.parts_of_speech import DET, NUM, PUNCT, X, PRT, NO_TAG, EOL
 
-stop = set(stopwords.words('english')).union(["et", "as", "md"])
+stupid = ["et", "as", "md", "mri", "pcr", "phd", "mlpa", "issn", "isbn", "dr", "drs", "mr", "mim", "all", "yes", "no"]
+triplets = ["".join(triplet) for triplet in list(itertools.combinations_with_replacement(["a", "c", "g", "u"], 3))]
+stop = set(stopwords.words('english')).union(stupid).union(triplets)
 
 def is_eligable(tok):
-    exclude = [NUM, X, PUNCT, PRT, NO_TAG, EOL, DET]
-    return tok.pos not in exclude and tok.norm_.isalnum()
+    exclude = [NUM, X, NO_TAG, EOL]
+    return tok.pos not in exclude
 
 def tokenize(s, parse=False, tag=True):
     included = []
@@ -145,20 +147,20 @@ def knuth_morris_pratt(text, pattern):
         shifts[pos+1] = shift
 
     # do the actual search
-    startPos = 0
-    matchLen = 0
+    start_pos = 0
+    match_len = 0
     for c in text:
-        while matchLen == len(pattern) or \
-              matchLen >= 0 and pattern[matchLen] != c:
-            startPos += shifts[matchLen]
-            matchLen -= shifts[matchLen]
-        matchLen += 1
-        if matchLen == len(pattern):
-            yield startPos
+        while match_len == len(pattern) or \
+              match_len >= 0 and pattern[match_len] != c:
+            start_pos += shifts[match_len]
+            match_len -= shifts[match_len]
+        match_len += 1
+        if match_len == len(pattern):
+            yield start_pos
 
 def find_concepts(trie, words):
     s = " ".join([w for w in words if w.lower() not in stop])
-    concepts = [s[k[0]:k[1]] for k in trie.findall_long(s) if (k[1] - k[0]) > 2]
+    concepts = [s[k[0]:k[1]] for k in trie.findall_long(s) if (k[1] - k[0]) >= 2]
     # now only get things that were actual tokens (not parts of words)
     # ... if I were smarter&more patient I could probably modify the Aho-Corasick to do this in one go ...
     matches = []
@@ -192,6 +194,15 @@ def pad_infinite(iterable, padding=None):
 def pad(iterable, size, padding=None):
     return islice(pad_infinite(iterable, padding), size)
 
+def is_acronym(s):
+    return s.isupper() and not any(c in string.whitespace for c in s)
+
+def transform_abbr(s):
+    return s.lower() if not is_acronym(s) else s
+
+def str_fragment(tokens, pos):
+    return " ".join([t.norm_ for t in tokens[pos[0]:pos[1]]])
+
 class MintzModel:
 
     '''''
@@ -221,7 +232,7 @@ class MintzModel:
 
         self.tagger = ner.SocketNER(host='localhost', port=9191)
 
-        self.disease_trie = trie_from_file(os.path.join(self.data_dir, "concept_lists/diseases.txt"))
+        self.disease_trie = trie_from_file(os.path.join(self.data_dir, "concept_lists/diseases.txt"), transform=transform_abbr)
         self.gene_trie = trie_from_file(os.path.join(self.data_dir, "concept_lists/genes.txt"))
 
     def get_sentences(self, file_name):
@@ -234,7 +245,7 @@ class MintzModel:
     def get_entities(self, words, use_ner=True):
         entities = defaultdict(set)
 
-        entities["DISEASE"] = set(find_concepts(self.disease_trie, words))
+        entities["DISEASE"] = set(find_concepts(self.disease_trie, [transform_abbr(w) for w in words]))
         entities["GENE"] = set(find_concepts(self.gene_trie, words))
 
         if use_ner:
@@ -247,101 +258,98 @@ class MintzModel:
 
         return entities
 
-    def get_feature_dicts(self, sent, included, excluded, entities):
+    def get_feature_dicts(self, sent, included, excluded, entity_pair):
         part_of_speech = [tok.norm_ + "/" + tok.pos_ for tok in included]
 
-        genes = [(pos, "GENE") for pos in entities["GENE"]]
-        diseases = [(pos, "DISEASE") for pos in entities["DISEASE"]]
+        entity = ((entity_pair[0], "GENE"),(entity_pair[1], "DISEASE"))
 
-        pairs = [sorted(pair, key=lambda x: x[0]) for pair in itertools.product(genes, diseases)]
+        pair = sorted(entity, key=lambda x: x[0])
 
         features = []
-        for pair in pairs:
-            start = pair[0][0][1]
-            stop = pair[1][0][0]
-            bound = sorted((start, stop))
+        start = pair[0][0][1]
+        stop = pair[1][0][0]
+        bound = sorted((start, stop))
 
-            if bound[0] == bound[1]:
-                continue
+        for window in range(0,3):
+            feature_dict = {
+                "first": pair[0][1],
+                "second": pair[1][1]}
 
-            for window in range(0,3):
-                feature_dict = {
-                    "first": pair[0][1],
-                    "second": pair[1][1]}
+            feature_dict["pos"] = " ".join(part_of_speech[bound[0]:bound[1]])
 
-                feature_dict["pos"] = " ".join(part_of_speech[bound[0]:bound[1]])
+            left_window = part_of_speech[max(0, start - window - 1):start]
+            right_window = part_of_speech[stop + 1:min(len(part_of_speech) - 1, stop + window + 1)]
 
-                left_window = part_of_speech[max(0, start - window - 1):start]
-                right_window = part_of_speech[stop + 1:min(len(part_of_speech) - 1, stop + window + 1)]
+            feature_dict["left"] = " ".join(pad(left_window, window, "#PAD#"))
+            feature_dict["right"] = " ".join(pad(right_window, window, "#PAD#"))
 
-                feature_dict["left"] = " ".join(pad(left_window, window, "#PAD#"))
-                feature_dict["right"] = " ".join(pad(right_window, window, "#PAD#"))
-
-                features.append(feature_dict)
+            features.append(feature_dict)
         return features
 
-    def get_data(self, relations, text_dir):
+    @persist("data")
+    def get_data(self, is_relevant, text_dirs):
         labels = []
         features = []
 
-        @memoized
-        def fuzzy_match(t1, t2, threshold):
-            return any([process.extractOne(t, t2)[1] >= threshold for t in t1])
+        for text_dir in text_dirs:
+            for root, dir, files in os.walk(text_dir):
+                n_files = len(files)
+                for idx, name in enumerate(files):
+                    pmid, ext = os.path.splitext(name)
 
-        def is_relevant(relations, entities, threshold=80):
-            try:
-                t1 = frozenset([t for t in relations["TRAITS"]])
-                t2 = frozenset([t for t in entities["DISEASE"]])
+                    logging.debug("processing %s %s (%s / %s)" % (text_dir, pmid, idx, n_files))
+                    sentences_for_pmid = self.get_sentences(root + "/" + name)
 
-                g1 = frozenset([t for t in relations["VARIANTS"]])
-                g2 = frozenset([t for t in entities["GENE"]])
+                    for sent in sentences_for_pmid:
+                        included, excluded = tokenize(sent)
+                        entities = self.get_entities([tok.norm_ for tok in included])
 
-                return any([g in g2 for g in g1]) and fuzzy_match(t1, t2, threshold)
-            except Exception, e:
-                logging.error("%s\n%s\n%s" % (e, relations, entities))
-                return False
+                        for pair in itertools.product(entities["GENE"], entities["DISEASE"]):
+                            gene_disease = (str_fragment(included, pair[0]), str_fragment(included, pair[1]))
 
-        for root, dir, files in os.walk(text_dir):
-            n_files = len(files)
-            for idx, name in enumerate(files):
-                pmid, ext = os.path.splitext(name)
+                            if is_relevant(gene_disease):
+                                feature_dicts = self.get_feature_dicts(sent, included, excluded, pair)
+                                features.extend(feature_dicts)
+                                labels.extend(repeat(True, len(feature_dicts)))
+                            else:
+                                feature_dicts = self.get_feature_dicts(sent, included, excluded, pair)
+                                features.extend(feature_dicts)
+                                labels.extend(repeat(False, len(feature_dicts)))
 
-                logging.debug("processing %s (%s / %s)" % (pmid, idx, n_files))
-                sentences_for_pmid = self.get_sentences(root + "/" + name)
-
-                for sent in sentences_for_pmid:
-                    included, excluded = tokenize(sent)
-                    entities = self.get_entities([tok.norm_ for tok in included])
-
-                    if len(entities["DISEASE"]) and len(entities["GENE"]):
-
-                        feature_dicts = self.get_feature_dicts(sent, included, excluded, entities)
-
-                        diseases = set([" ".join([t.norm_ for t in included[p[0]:p[1]]]) for p in entities["DISEASE"]])
-                        genes = set([" ".join([t.norm_ for t in included[p[0]:p[1]]]) for p in entities["GENE"]])
-
-                        entity_strings = {"DISEASE": diseases, "GENE": genes}
-
-                        features.extend(feature_dicts)
-                        if len(diseases) and len(genes) and is_relevant(relations.get(pmid, []), entity_strings):
-                            logging.debug("RELEVANT: '%s'" % (sent))
-                            labels.extend(repeat(True, len(feature_dicts)))
-                        else:
-                            logging.debug("NOT RELEVANT: '%s'" % (sent))
-                            labels.extend(repeat(False, len(feature_dicts)))
-
-            return features, labels
+        return features, labels
 
 
-    def evaluate(self):
-        text_dir = os.path.join(self.data_dir, "data/abstracts")
-        relations_file = os.path.join(self.data_dir, "data/ClinVarFullRelease_2015-02-byPMID-extended.json")
-
+    def get_relations(self, relations_file):
         with open(relations_file, 'rb') as f:
             relations = json.load(f)
 
+        disease_gene_dict = defaultdict(set)
+        gene_disease_dict = defaultdict(set)
 
-        data, labels = self.get_data(relations, text_dir)
+        for relation in relations:
+            disease_gene_dict[relation[0]].add(relation[1])
+            gene_disease_dict[relation[1]].add(relation[0])
+
+        return disease_gene_dict, gene_disease_dict
+
+
+    def is_relevant_lambda(self, disease_gene_dict, gene_disease_dict):
+        def is_relevant(pair, threshold=85):
+            # a pair is (gene, disease) and will be checked against the ClinVar dicts
+            diseases_for_gene = disease_gene_dict[pair[0]]
+            return process.extractOne(pair[1], diseases_for_gene)[1] >= threshold if diseases_for_gene else False
+        return is_relevant
+
+    def evaluate(self):
+        abstracts_dir = os.path.join(self.data_dir, "data/abstracts")
+        full_text_dir = os.path.join(self.data_dir, "data/cache")
+
+        relations_file = os.path.join(self.data_dir, "data/ClinVarFullRelease_2015-02-flattened.json")
+
+        disease_gene_dict, gene_disease_dict = self.get_relations(relations_file)
+        is_relevant = self.is_relevant_lambda(disease_gene_dict, gene_disease_dict)
+
+        data, labels = self.get_data(is_relevant, [full_text_dir, abstracts_dir])
         v = DictVectorizer(sparse=True)
         X = v.fit_transform(data)
         y = np.array(labels)
