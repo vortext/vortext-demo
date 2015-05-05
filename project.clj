@@ -14,7 +14,7 @@
 
         :port 8888
         :dev true}
-  :dependencies [[org.clojure/clojure "1.6.0"]
+  :dependencies [[org.clojure/clojure "1.7.0-beta2"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha"]
                  [org.clojure/tools.cli "0.3.1"]
 
@@ -44,9 +44,4 @@
                  [org.zeromq/jeromq "0.3.4"]]
 
   :uberjar-name "vortext-demo.jar"
-  :profiles {:production {:env {:dev false}}
-             :uberjar {:omit-source true
-                       :env {:dev false
-                             :production true}
-
-                       :aot :all}})
+  :profiles {:production {:env {:dev false}}})
