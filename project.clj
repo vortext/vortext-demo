@@ -23,21 +23,21 @@
                                               javax.jms/jms
                                               com.sun.jdmk/jmxtools
                                               com.sun.jmx/jmxri]]
-                 [com.taoensso/timbre "3.3.1"]
+                 [com.taoensso/timbre "3.4.0"]
 
                  [environ "1.0.0"]
 
-                 [lib-noir "0.9.5"]
-                 [noir-exception "0.2.3"]
-                 [selmer "0.8.0"]
+                 [lib-noir "0.9.9"]
+                 [noir-exception "0.2.5"]
+                 [selmer "0.8.2"]
 
                  [http-kit "2.1.19"]
-                 [compojure "1.3.1"]
+                 [compojure "1.3.3"]
                  [ring/ring-devel "1.3.2"]
 
-                 [prismatic/plumbing "0.3.7"]
+                 [prismatic/plumbing "0.4.3"]
 
-                 [potemkin "0.3.11"]
+                 [potemkin "0.3.13"]
                  [primitive-math "0.1.4"]
                  [commons-codec/commons-codec "1.10"]
 
