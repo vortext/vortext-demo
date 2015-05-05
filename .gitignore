@@ -48,5 +48,7 @@ node_modules
 build
 resources/topologies/*
 !resources/topologies/example
+!resources/topologies/ebm
+resources/topologies/ebm/models/
 !.gitkeep
 
