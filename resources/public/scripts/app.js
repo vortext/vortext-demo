@@ -27,7 +27,7 @@ define(function (require) {
   var Marginalia = React.createFactory(require("jsx!spa/components/marginalia"));
 
   var process = function(data) {
-    var upload = FileUtil.upload("/topologies/ebm", data);
+    var upload = FileUtil.upload("/topologies/gen2phen", data);
     documentModel.loadFromData(data);
     upload.then(function(result) {
       var marginalia = JSON.parse(result);
@@ -99,6 +99,7 @@ define(function (require) {
       marginaliaComponent.forceUpdate();
       break;
     case "pages:change:annotations":
+      documentModel.annotate(marginaliaModel.getActive());
       documentComponent.forceUpdate();
       break;
     default:

@@ -46,4 +46,7 @@ target/
 node_modules
 
 build
-resources/topologies/*/models/*
+resources/topologies/*
+!resources/topologies/example
+!.gitkeep
+

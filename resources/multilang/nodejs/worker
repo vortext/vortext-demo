@@ -39,6 +39,7 @@ function runServer(handler) {
       });
     } catch (err) {
       console.error("Failed to process", err);
+      result = {}
     }
   });
 
