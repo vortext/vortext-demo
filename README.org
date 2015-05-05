@@ -3,7 +3,7 @@ This repository contains the code for demonstrating various machine learning mod
 It currently powers [[https://robot-reviewer.vortext.systems/][Robot-Reviewer]], a system for automatically extracting Risk of Bias from Randomized Controlled Trial publications.
 
 In essence it's [[https://github.com/vortext/vortext][Vortext]] stripped down to essentials, and with the ability to run predictions in various programming languages.
-At some point the functionality between these two will hopefully converge.
+At some point the functionality between the two repositories will hopefully converge.
 Currently, we are looking for seed-investors to develop this further, if you're interested drop us a line at [[http://vortext.systems][vortext.systems]].
 
 * Technical overview
@@ -152,4 +152,4 @@ The API and organizational structure are subject to change.
 Comments and suggestions are much appreciated.
 For code contributions: fork, branch, and send a pull request.
 * License
-Vortext Demo is open source, and licensed under [[http://gplv3.fsf.org/][GPLv3]]. See [[https://github.com/joelkuiper/spa/blob/master/LICENSE.md][LICENSE.md]] for more information.
+Vortext Demo is open source, and licensed under [[http://gplv3.fsf.org/][GPLv3]].
