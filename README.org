@@ -112,7 +112,7 @@ We require at least Java JVM/JDK 1.8 and Leiningen 2.4.
  brew install node # install nodejs via Homebrew
  npm install
  node make generic
-   #+END_SRC
+#+END_SRC
 
 Furthermore, to make the RPC stuff work we require the following
 
@@ -126,10 +126,11 @@ tar zxvf zeromq-4.0.5.tar.gz
 cd zeromq-4.0.5 && ./configure
 cd zeromq-4.0.5 && make && make install
 rm -rf zeromq-4.0.5
-# NodeJS stuff
-RUN npm install q underscore zmq atob commander
 
-# Python
+# NodeJS RPC stuff
+npm install q underscore zmq atob commander
+
+# Python RPC
 RUN pip install pyzmq argparse
 #+END_SRC
 
