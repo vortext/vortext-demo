@@ -22,7 +22,8 @@ from ftfy import fix_text
 sys.path.append('../../multilang/python')
 sys.path.append(os.path.abspath("resources/topologies/gen2phen/"))
 
-from mintz_model2 import tokenize, MintzModel
+from mintz_model import MintzModel
+from annotate import annotate_text, get_concept
 
 class Handler():
 
@@ -59,66 +60,110 @@ class Handler():
         script_dir = os.path.dirname(__file__) #<-- absolute dir the script is in
         self.hgvs_regexes = self.hgvs_regex.values()
 
-        self.sent_tokenize = nltk.data.load('tokenizers/punkt/english.pickle')
-
         logging.info("constructing model")
         self.model = MintzModel(script_dir);
         self.cls, self.vectorizer = self.load_model(os.path.join(script_dir, "models/model.pck"))
 
-    def get_sentences(self, document):
-        return self.sent_tokenize.span_tokenize(document, realign_boundaries=True)
+    def href(self, concept):
+        return "[" + concept["label"] + "](" + concept["uri"] + ")"
 
-    def handle(self, payload):
-        document = json.loads(payload)
+    def predict(self, text):
+        sents, abbrs, observed_entities = annotate_text(self.model, text)
 
-        document_text = " ".join(document["pages"])
+        # map from entity_name -> concept_uri
+        concept_map = {}
 
-        sents = self.get_sentences(document_text)
+        # map from concept_uri -> definition
+        concept_definitions = {}
 
-        annotations = []
-        def annotation(sent, sent_text):
+        # map concept_uri -> sentence indexes
+        sentence_indexes = defaultdict(set)
+
+        # map of matched (gene, disease) -> sentence indicies
+        matched_sentences = defaultdict(set)
+
+        # map of disease_uri -> set(gene_uris)
+        predicted_associations = defaultdict(set)
+
+        def key_for(gene, disease):
+            return gene + "-" + disease
+
+        def annotation(sent_data):
+            start = sent_data["bound"][0]
+            stop = sent_data["bound"][1]
+
             return {"uuid": str(uuid.uuid1()),
-                    "position": sent[0],
-                    "prefix": document_text[max(sent[0] - 32, 0):sent[0]],
-                    "suffix": document_text[sent[1]:min(sent[1] + 32, len(document_text))],
-                    "content": sent_text}
+                    "position": start,
+                    "prefix": text[max(start - 32, 0):start],
+                    "suffix": text[stop:min(stop + 32, len(text))],
+                    "content": sent_data["sent"]}
 
-        predictions = defaultdict(set)
+        # BEGIN prediction loop over sentences with entities
+        for idx, sent in enumerate(sents):
+            sent_data, entities = sent
 
-        for sent in sents:
-            sent_text = document_text[sent[0]:sent[1]]
+            for entity in entities:
+                concept = get_concept(entity["kind"], entity["name"], entity.get("definition"))
+                concept_map[entity["name"]] = concept["uri"]
+                concept_definitions[concept["uri"]] = concept
+                sentence_indexes[concept_uri].add(idx)
 
-            s = fix_text(unicode(sent_text))
+            included = sent_data["included"]
+            excluded = sent_data["excluded"]
+            pairs = self.model.get_pairs(entities)
 
-            included, excluded = tokenize(s)
-            words = [t.norm_ for t in included]
-
-            entities = self.model.get_entities(words, use_ner=True)
-
-            if "DISEASE" in entities and "GENE" in entities and len(included):
-                feature_dict = self.model.get_feature_dicts(s, included, excluded, entities)
+            for pair in pairs:
+                feature_dict = self.model.get_feature_dicts(included, excluded, pair)
                 if not feature_dict:
                     continue
                 X = self.vectorizer.transform(feature_dict)
                 predict = self.cls.predict(X)
-
                 if any(predict):
-                    pairs = itertools.product(entities["GENE"], entities["DISEASE"])
-                    for pair in pairs:
-                        gene = " ".join(words[pair[0][0]:pair[0][1]])
-                        disease = " ".join(words[pair[1][0]:pair[1][1]])
-                        k = gene + " - " + disease
-                        predictions[k] = predictions[k].union([(sent, sent_text)])
 
+                    gene_uri = concept_map.get(pair[0]["name"])
+                    disease_uri = concept_map.get(pair[1]["name"])
 
+                    if gene_uri and disease_uri:
+                        k = key_for(gene_uri, disease_uri)
+                        matched_sentences[k].add(idx)
+                        predicted_associations[disease_uri].add(gene_uri)
+        # END predictions
+
+        # BEGIN generate results
         output = []
-        for key, annotations in reversed(sorted(predictions.items(), key=lambda x: len(x[1]))):
-            out = {
-                "type": "Genome-disease relation prediction",
-                "title": key,
-                "description": "Possible association",
-                "annotations": [annotation(sent,sent_text) for sent, sent_text in annotations]
-            }
-            output.append(out)
+        for disease_uri, gene_uris in predicted_associations:
+            disease_concept = concept_map[disease_uri]
+            gene_concepts = [concept_map[uri] for uri in gene_uris]
+
+            disease_description = disease_concept.get("description", "*no description*")
+
+            genes_list = "\n".join(["* " + self.href(g) for g in gene_concepts])
+
+            description = "%s <br><br> %s" % (disease_description, gene_list)
+
+            prediction = {"type": "gene-disease relation prediction",
+                    "title": disease_concept["label"],
+                    "description": description}
+
+            annotations = []
+            for gene_uri in gene_uris:
+                k = key_for(gene_uri, disease_uri)
+                indexes = matched_sentences[k]
+                for idx in indexes:
+                    sent_data, entities = sent_data[idx]
+                    annotations.append(annotation(sent_data))
+
+            prediction["annotations"] = annotations
+            output.append(prediction)
+
+        return output
+
+
+    def handle(self, payload):
+        document = json.loads(payload)
+
+        text = " ".join(document["pages"])
+
+        output = self.predict(fix_text(text))
 
         return json.dumps({"marginalia": output})

@@ -14,6 +14,7 @@ import itertools
 from itertools import chain, repeat, islice
 from ftfy import fix_text
 import spacy.en
+from spacy.parts_of_speech import DET, NUM, PUNCT, X, PRT, NO_TAG, EOL
 
 import numpy as np
 import scipy as sp
@@ -38,6 +39,8 @@ from sklearn.feature_extraction import DictVectorizer
 from ftfy import fix_text
 
 import ner
+
+from annotate import annotate_text
 
 class memoized(object):
     '''Decorator. Caches a function's return value each time it is called.
@@ -68,11 +71,9 @@ class memoized(object):
 
 
 def persist(file_name):
-    """
-    Persists the results of the function in a pickle
+    """ Persists the results of the function in a pickle
     To be used as a function decorator
     """
-
     script_dir = os.path.dirname(__file__)
     file_name_with_extension = os.path.join(script_dir, file_name + ".pck")
     def func_decorator(func):
@@ -99,31 +100,6 @@ def persist(file_name):
                 return result
         return func_wrapper
     return func_decorator
-
-
-nlp = spacy.en.English()
-from spacy.parts_of_speech import DET, NUM, PUNCT, X, PRT, NO_TAG, EOL
-
-stupid = ["et", "as", "md", "mri", "pcr", "phd", "mlpa", "issn", "isbn", "dr", "drs", "mr", "mim", "all", "yes", "no"]
-triplets = ["".join(triplet) for triplet in list(itertools.combinations_with_replacement(["a", "c", "g", "u"], 3))]
-stop = set(stopwords.words('english')).union(stupid).union(triplets)
-
-def is_eligable(tok):
-    exclude = [NUM, X, NO_TAG, EOL]
-    return tok.pos not in exclude
-
-def tokenize(s, parse=False, tag=True):
-    included = []
-    excluded = []
-    for tok in nlp(s, parse=parse, tag=tag):
-        if is_eligable(tok):
-            included.append(tok)
-        else:
-            excluded.append(tok)
-    return included, excluded
-
-def normalize(s):
-    return fix_text(s.decode("utf-8", "ignore"))
 
 def knuth_morris_pratt(text, pattern):
     # Knuth-Morris-Pratt string matching adapted for arbitrary sequences
@@ -158,35 +134,29 @@ def knuth_morris_pratt(text, pattern):
         if match_len == len(pattern):
             yield start_pos
 
-def find_concepts(trie, words):
-    s = " ".join([w for w in words if w.lower() not in stop])
-    concepts = [s[k[0]:k[1]] for k in trie.findall_long(s) if (k[1] - k[0]) >= 2]
+nlp = spacy.en.English()
+def find_concepts(trie, words, min_length=3):
+    s = " ".join([w for w in words if w.lower()])
+    concepts = [s[k[0]:k[1]] for k in trie.findall_long(s) if (k[1] - k[0]) >= min_length]
     # now only get things that were actual tokens (not parts of words)
     # ... if I were smarter&more patient I could probably modify the Aho-Corasick to do this in one go ...
     matches = []
     for concept in concepts:
         concept_words = [t.norm_ for t in nlp(concept)]
-        matches.extend([(start,start + len(concept_words)) for start in knuth_morris_pratt(words, concept_words)])
+        matches.extend([(start,start + len(concept_words)) \
+                        for start in knuth_morris_pratt(words, concept_words)])
     return matches
 
 def find_concepts_ner(tagger, words):
-    s = " ".join([w for w in words if w.lower() not in stop])
+    s = " ".join([w for w in words if w.lower()])
     result = tagger.get_entities(s)
     matches = defaultdict(list)
     for key, concepts in result.iteritems():
         for concept in concepts:
             concept_words = [t.norm_ for t in nlp(concept)]
-            matches[key].extend([(start,start + len(concept_words)) for start in knuth_morris_pratt(words, concept_words)])
+            matches[key].extend([(start,start + len(concept_words)) \
+                                 for start in knuth_morris_pratt(words, concept_words)])
     return matches
-
-def trie_from_file(file_name, transform=lambda x: x):
-    with open(file_name, "r") as f:
-        concepts = [transform(normalize(x.strip())) for x in f.readlines()]
-    trie = NoAho()
-    for concept in concepts:
-        trie.add(concept)
-        logging.debug("adding %s" % concept)
-    return trie
 
 def pad_infinite(iterable, padding=None):
     return chain(iterable, repeat(padding))
@@ -194,53 +164,75 @@ def pad_infinite(iterable, padding=None):
 def pad(iterable, size, padding=None):
     return islice(pad_infinite(iterable, padding), size)
 
-def is_acronym(s):
-    return s.isupper() and not any(c in string.whitespace for c in s)
+def is_abbr(s):
+    w = ''.join(e for e in s if e.isalnum())
+    return w.isupper()
 
 def transform_abbr(s):
-    return s.lower() if not is_acronym(s) else s
+    return s.lower() if not is_abbr(s) else s
 
-def str_fragment(tokens, pos):
-    return " ".join([t.norm_ for t in tokens[pos[0]:pos[1]]])
+
 
 class MintzModel:
-
-    '''''
-    These are lifted from
-    `tmVar: A text mining approach for extracting sequence variants in biomedical literature` (Chih-Hsuan Wei et.al.)
-    And match HGVS entities on a per-token basis. See Table 3 of their publication.
-    '''''
-    hgvs_regex = {
-        "genomic_1": re.compile("([cgrm]\.[ATCGatcgu \/\>\<\?\(\)\[\]\;\:\*\_\-\+0-9]+(inv|del|ins|dup|tri|qua|con|delins|indel)[ATCGatcgu0-9\_\.\:]*)"),
-        "genomic_2": re.compile("(IVS[ATCGatcgu \/\>\<\?\(\)\[\]\;\:\*\_\-\+0-9]+(del|ins|dup|tri|qua|con|delins|indel)[ATCGatcgu0-9\_\.\:]*)"),
-        "genomic_3": re.compile("([cgrm]\.[ATCGatcgu \/\>\?\(\)\[\]\;\:\*\_\-\+0-9]+)"),
-        "genomic_4": re.compile("(IVS[ATCGatcgu \/\>\?\(\)\[\]\;\:\*\_\-\+0-9]+)"),
-        "genomic_5": re.compile("([cgrm]\.[ATCGatcgu][0-9]+[ATCGatcgu])"),
-        "genomic_6": re.compile("([ATCGatcgu][0-9]+[ATCGatcgu])"),
-        "genomic_7": re.compile("([0-9]+(del|ins|dup|tri|qua|con|delins|indel)[ATCGatcgu]*)"),
-        "protein_1": re.compile("([p]\.[CISQMNPKDTFAGHLRWVEYX \/\>\<\?\(\)\[\]\;\:\*\_\-\+0-9]+(inv|del|ins|dup|tri|qua|con|delins|indel|fsX|fsx|fsx|fs)[CISQMNPKDTFAGHLRWVEYX \/\>\<\?\(\)\[\]\;\:\*\_\-\+0-9]*)"),
-        "protein_2": re.compile("([p]\.[CISQMNPKDTFAGHLRWVEYX \/\>\?\(\)\[\]\;\:\*\_\-\+0-9]+)"),
-        "protein_3": re.compile("([p]\.[A-Z][a-z]{0,2}[\W\-]{0,1}[0-9]+[\W\-]{0,1}[A-Z][a-z]{0,2})"),
-        "protein_4": re.compile("([p]\.[A-Z][a-z]{0,2}[\W\-]{0,1}[0-9]+[\W\-]{0,1}(fs|fsx|fsX))")
-    }
-
     def __init__(self, data_dir):
         logging.debug("initializing")
         self.data_dir = data_dir
         self.sent_tokenize = nltk.data.load('tokenizers/punkt/english.pickle')
-        self.hgvs_regexes = self.hgvs_regex.values()
 
         self.tagger = ner.SocketNER(host='localhost', port=9191)
 
-        self.disease_trie = trie_from_file(os.path.join(self.data_dir, "concept_lists/diseases.txt"), transform=transform_abbr)
-        self.gene_trie = trie_from_file(os.path.join(self.data_dir, "concept_lists/genes.txt"))
+        def trie_from_file(file_name, transform=lambda x: x):
+            with open(file_name, "r") as f:
+                concepts = [transform(self.normalize(x.strip())) for x in f.readlines()]
+            trie = NoAho()
+            for concept in concepts:
+                trie.add(concept)
+                logging.debug("adding %s" % concept)
+            return trie
 
-    def get_sentences(self, file_name):
-        sents = []
+        disease_path = os.path.join(self.data_dir, "concept_lists/diseases.txt")
+        self.disease_trie = trie_from_file(disease_path, transform=transform_abbr)
+        gene_path = os.path.join(self.data_dir, "concept_lists/genes.txt")
+        self.gene_trie = trie_from_file(gene_path)
+
+        # this is a manually curated list of words that are common and gene/disease names
+        # we filter these because they yield too much false positives.
+        # this comes at the cost of some true positives, however. Use with caution
+        stupid = ["et", "al", "el", "as", "md", "mri", "pcr", "ct" \
+                  "phd", "mlpa", "issn", "isbn", "dr", \
+                  "drs", "mr", "mim", "all", "yes", "no" \
+                  "ns", "nd", "id", "na"
+                  "ii", "iii", "iv", "vi", "ix", "xi"]
+        triplets = ["".join(triplet) for \
+                    triplet in list(itertools.combinations_with_replacement(["a", "c", "g", "u" "t"], 3))]
+        self.stop = set(stopwords.words('english')).union(stupid).union(triplets)
+
+
+    def is_eligable(self, tok):
+        exclude = [NUM, X, NO_TAG, EOL]
+        return tok.pos not in exclude and tok.norm_.lower() not in self.stop
+
+    def tokenize(self, s, parse=False, tag=True):
+        included = []
+        excluded = []
+        for tok in nlp(s, parse=parse, tag=tag):
+            if self.is_eligable(tok):
+                included.append(tok)
+            else:
+                excluded.append(tok)
+        return included, excluded
+
+    def normalize(self, s):
+        return fix_text(s.decode("utf-8", "ignore"))
+
+    def get_sentences(self, text):
+        return self.sent_tokenize.span_tokenize(text, realign_boundaries=True)
+
+    def get_text(self, file_name):
+        text = ""
         with open(file_name) as f:
-            text = normalize(f.read())
-            sents = self.sent_tokenize.tokenize(text, realign_boundaries=True)
-        return [sent.rstrip(".") for sent in sents]
+            text = self.normalize(f.read())
+        return text
 
     def get_entities(self, words, use_ner=True):
         entities = defaultdict(set)
@@ -253,15 +245,13 @@ class MintzModel:
             entities["DISEASE"] = entities["DISEASE"].union(entities_ner["DISEASE"])
             entities["GENE"] = entities["GENE"].union(entities_ner["GENE"])
 
-        entities["GENE"] = entities["GENE"] - entities["DISEASE"]
-        entities["DISEASE"] = entities["DISEASE"] - entities["GENE"]
-
         return entities
 
-    def get_feature_dicts(self, sent, included, excluded, entity_pair):
+    def get_feature_dicts(self, included, excluded, entity_pair):
         part_of_speech = [tok.norm_ + "/" + tok.pos_ for tok in included]
 
-        entity = ((entity_pair[0], "GENE"),(entity_pair[1], "DISEASE"))
+        entity = ((entity_pair[0]["interval"], entity_pair[0]["kind"]),
+                  (entity_pair[1]["interval"], entity_pair[1]["kind"]))
 
         pair = sorted(entity, key=lambda x: x[0])
 
@@ -286,7 +276,13 @@ class MintzModel:
             features.append(feature_dict)
         return features
 
-    @persist("data")
+    def get_pairs(self, entities):
+        entity_dict = defaultdict(list)
+        for entity in entities:
+            entity_dict[entity["kind"]] += [entity]
+
+        return itertools.product(entity_dict["GENE"], entity_dict["DISEASE"])
+
     def get_data(self, is_relevant, text_dirs):
         labels = []
         features = []
@@ -298,22 +294,25 @@ class MintzModel:
                     pmid, ext = os.path.splitext(name)
 
                     logging.debug("processing %s %s (%s / %s)" % (text_dir, pmid, idx, n_files))
-                    sentences_for_pmid = self.get_sentences(root + "/" + name)
+                    text = self.get_text(root + "/" + name)
+                    sents, abbrs, observed_entities = annotate_text(self, text)
+                    for sent_data, entities in sents:
+                        pairs = self.get_pairs(entities)
 
-                    for sent in sentences_for_pmid:
-                        included, excluded = tokenize(sent)
-                        entities = self.get_entities([tok.norm_ for tok in included])
+                        included = sent_data["included"]
+                        excluded = sent_data["excluded"]
 
-                        for pair in itertools.product(entities["GENE"], entities["DISEASE"]):
-                            gene_disease = (str_fragment(included, pair[0]), str_fragment(included, pair[1]))
+                        for pair in pairs:
+                            feature_dicts = self.get_feature_dicts(included, excluded, pair)
+                            features.extend(feature_dicts)
+
+                            gene_disease = (pair[0].get("definition", pair[0]["name"]),
+                                            pair[1].get("definition", pair[1]["name"]))
+                            logging.debug(gene_disease)
 
                             if is_relevant(gene_disease):
-                                feature_dicts = self.get_feature_dicts(sent, included, excluded, pair)
-                                features.extend(feature_dicts)
                                 labels.extend(repeat(True, len(feature_dicts)))
                             else:
-                                feature_dicts = self.get_feature_dicts(sent, included, excluded, pair)
-                                features.extend(feature_dicts)
                                 labels.extend(repeat(False, len(feature_dicts)))
 
         return features, labels
@@ -344,23 +343,23 @@ class MintzModel:
         abstracts_dir = os.path.join(self.data_dir, "data/abstracts")
         full_text_dir = os.path.join(self.data_dir, "data/cache")
 
-        relations_file = os.path.join(self.data_dir, "data/ClinVarFullRelease_2015-02-flattened.json")
+        relations_file = os.path.join(self.data_dir, "data/ClinVarFullRelease_2015-05-flattened.json")
 
         disease_gene_dict, gene_disease_dict = self.get_relations(relations_file)
         is_relevant = self.is_relevant_lambda(disease_gene_dict, gene_disease_dict)
 
-        data, labels = self.get_data(is_relevant, [full_text_dir, abstracts_dir])
+        data, labels = self.get_data(is_relevant, [abstracts_dir, full_text_dir])
         v = DictVectorizer(sparse=True)
         X = v.fit_transform(data)
         y = np.array(labels)
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
 
         clf = SGDClassifier(shuffle=True)
 
-        params = {"alpha": [.00001, .0001, 0.01, 0.1, 1, 10],
-                  "loss": ["log", "modified_huber"],
-                  "penalty": ["l1", "l2", "elasticnet"]}
+        params = {"alpha": [.0001, .001, .01, 0.1, 1, 10],
+                  "loss": ["log", "modified_huber", "hinge"],
+                  "penalty": ["none", "l1", "l2", "elasticnet"]}
         search = GridSearchCV(clf, param_grid=params, scoring="f1", cv=5, refit=True, n_jobs=2)
 
         logging.debug("running predictions")
