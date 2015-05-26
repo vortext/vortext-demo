@@ -160,7 +160,7 @@ class Handler():
             prediction["annotations"] = annotations
             output.append(prediction)
 
-        return sorted(output, key=lambda x: len(x["annotations"]))
+        return list(reversed(sorted(output, key=lambda x: len(x["annotations"]))))
 
 
     def handle(self, payload):

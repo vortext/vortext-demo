@@ -13,6 +13,27 @@ from ftfy import fix_text
 from abbreviations import get_abbreviations
 
 from repoze.lru import lru_cache
+import re
+
+
+ESCAPE_CHARS_RE = re.compile(r'(?<!\\)(?P<char>[&|+\-!(){}[\]^\/"~*?:])')
+
+def lucene_escape(value):
+    r"""Escape un-escaped special characters and return escaped value.
+
+    from https://fragmentsofcode.wordpress.com/2010/03/10/escape-special-characters-for-solrlucene-query/
+    """
+    return ESCAPE_CHARS_RE.sub(r'\\\\\g<char>', value)
+
+
+def safeget(dct, *keys):
+    for key in keys:
+        try:
+            dct = dct[key]
+        except KeyError:
+            return None
+    return dct
+
 
 def get_sparql(query, endpoint="http://localhost:3030/gen2phen"):
     try:
@@ -41,10 +62,9 @@ def get_gene_concept(term):
         FROM  <http://localhost:3030/gen2phen/data/ordo>
         WHERE {
         SELECT ?concept ?label {
-        { ?concept text:query (rdfs:label "%(term)s" 1) } .
-        { ?concept rdfs:label ?label } UNION { ?concept obo:IAO_0000118 ?label }}
-        LIMIT 1}
-    """ % {"term": term.encode('ascii', 'xmlcharrefreplace').replace("/", "\\\/")}
+          ?concept text:query ("%(term)s" 1) ;
+                   rdfs:label ?label} LIMIT 1}
+    """ % {"term": lucene_escape(term)}
 
     r = get_sparql(query)
     if r and len(r["bindings"]) >= 1:
@@ -64,28 +84,25 @@ def get_disease_concept(term):
         PREFIX oboinowl: <http://www.geneontology.org/formats/oboInOwl#>
         PREFIX fn: <http://www.w3.org/2005/xpath-functions#>
 
-        SELECT DISTINCT ?description ?concept ?label
+        SELECT ?description ?concept ?label
         FROM  <http://localhost:3030/gen2phen/data/ordo>
         FROM  <http://localhost:3030/gen2phen/data/hp>
         FROM  <http://localhost:3030/gen2phen/data/doid>
         WHERE {
         SELECT ?description ?concept ?label {
-            { ?concept text:query (rdfs:label "%(term)s" 1) }
-            UNION { ?concept text:query (oboinowl:hasExactSynonym "%(term)s" 1) }
-            UNION { ?concept text:query (efo:alternative_term "%(term)s" 1) }
-            UNION { ?concept text:query (rdfs:label "%(term)s~" 1) }
-            UNION { ?concept text:query (oboinowl:hasExactSynonym "%(term)s~" 1) }
-            UNION { ?concept text:query (efo:alternative_term "%(term)s~" 1) } .
-
-            ?concept rdfs:label ?label .
-            ?concept obo:IAO_0000115 ?description} LIMIT 1}
-    """ % {"term": term.encode('ascii', 'xmlcharrefreplace').replace("/", "\\\/")}
+          ?concept text:query ("%(term)s~" 1) ;
+                   rdfs:label ?label .
+          OPTIONAL {
+          { ?concept obo:IAO_0000115 ?description }
+            UNION { ?concept <http://www.ebi.ac.uk/efo/definition> ?description }
+          }}} LIMIT 1
+    """ % {"term": lucene_escape(term)}
 
     r = get_sparql(query)
     if r and len(r["bindings"]) >= 1:
         bindings = r["bindings"][0]
 
-        return {"description": bindings["description"]["value"],
+        return {"description": safeget(bindings, "description", "value") or "",
                 "uri": bindings["concept"]["value"],
                 "label": bindings["label"]["value"]}
     else:

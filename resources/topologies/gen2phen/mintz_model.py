@@ -135,7 +135,7 @@ def knuth_morris_pratt(text, pattern):
             yield start_pos
 
 nlp = spacy.en.English()
-def find_concepts(trie, words, min_length=3):
+def find_concepts(trie, words, min_length=4):
     s = " ".join([w for w in words if w.lower()])
     concepts = [s[k[0]:k[1]] for k in trie.findall_long(s) if (k[1] - k[0]) >= min_length]
     # now only get things that were actual tokens (not parts of words)
