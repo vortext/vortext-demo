@@ -198,14 +198,13 @@ class MintzModel:
         # this is a manually curated list of words that are common and gene/disease names
         # we filter these because they yield too much false positives.
         # this comes at the cost of some true positives, however. Use with caution
-        stupid = ["et", "al", "el", "as", "md", "mri", "pcr", "ct" \
-                  "phd", "mlpa", "issn", "isbn", "dr", \
-                  "drs", "mr", "mim", "all", "yes", "no" \
-                  "ns", "nd", "id", "na"
-                  "ii", "iii", "iv", "vi", "ix", "xi"]
+        stupid = set(["et", "al", "el", "as", "md", "mri", "pcr", "ct" \
+                  "mlpa", "issn", "isbn", "dr", \
+                  "drs", "bsc", "msc", "phd", "mim", "all", "yes", "no" \
+                  "ns", "nd", "id", "na"])
         triplets = ["".join(triplet) for \
                     triplet in list(itertools.combinations_with_replacement(["a", "c", "g", "u" "t"], 3))]
-        self.stop = set(stopwords.words('english')).union(stupid).union(triplets)
+        self.stop = stupid.union(triplets)
 
 
     def is_eligable(self, tok):

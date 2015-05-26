@@ -72,8 +72,11 @@ def get_disease_concept(term):
         SELECT ?description ?concept ?label {
             { ?concept text:query (rdfs:label "%(term)s" 1) }
             UNION { ?concept text:query (oboinowl:hasExactSynonym "%(term)s" 1) }
-            UNION { ?concept text:query (efo:alternative_term "%(term)s" 1) } .
-            ?concept a owl:Class .
+            UNION { ?concept text:query (efo:alternative_term "%(term)s" 1) }
+            UNION { ?concept text:query (rdfs:label "%(term)s~" 1) }
+            UNION { ?concept text:query (oboinowl:hasExactSynonym "%(term)s~" 1) }
+            UNION { ?concept text:query (efo:alternative_term "%(term)s~" 1) } .
+
             ?concept rdfs:label ?label .
             ?concept obo:IAO_0000115 ?description} LIMIT 1}
     """ % {"term": term.encode('ascii', 'xmlcharrefreplace').replace("/", "\\\/")}
@@ -88,7 +91,7 @@ def get_disease_concept(term):
     else:
         return {}
 
-@lru_cache(maxsize=2500)
+@lru_cache(maxsize=5000)
 def get_concept(kind, term, definition=None):
     if kind == "DISEASE":
         return get_disease_concept(definition or term)

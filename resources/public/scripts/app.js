@@ -45,12 +45,12 @@ define(function (require) {
   );
 
   var documentComponent = React.render(
-    new Document({pdf: documentModel, marginalia: marginaliaModel}),
+    new Document({pdf: documentModel, marginalia: marginaliaModel, editable: false}),
     document.getElementById("viewer")
   );
 
   var marginaliaComponent = React.render(
-    new Marginalia({marginalia: marginaliaModel}),
+    new Marginalia({marginalia: marginaliaModel, editable: false}),
     document.getElementById("marginalia")
   );
 

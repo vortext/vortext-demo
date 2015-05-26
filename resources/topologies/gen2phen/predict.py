@@ -29,8 +29,6 @@ class Handler():
 
     title = "Genome-disease relations"
 
-    model = None
-
     '''''
     These are lifted from `tmVar: A text mining approach for
     extracting sequence variants in biomedical literature` (Chih-Hsuan Wei et.al.)
@@ -65,7 +63,7 @@ class Handler():
         self.cls, self.vectorizer = self.load_model(os.path.join(script_dir, "models/model.pck"))
 
     def href(self, concept):
-        return "[" + concept["label"] + "](" + concept["uri"] + ")"
+        return '<a href="%s">%s</a>' % (concept["uri"], concept["label"].strip())
 
     def predict(self, text):
         sents, abbrs, observed_entities = annotate_text(self.model, text)
@@ -102,12 +100,6 @@ class Handler():
         for idx, sent in enumerate(sents):
             sent_data, entities = sent
 
-            for entity in entities:
-                concept = get_concept(entity["kind"], entity["name"], entity.get("definition"))
-                concept_map[entity["name"]] = concept["uri"]
-                concept_definitions[concept["uri"]] = concept
-                sentence_indexes[concept_uri].add(idx)
-
             included = sent_data["included"]
             excluded = sent_data["excluded"]
             pairs = self.model.get_pairs(entities)
@@ -119,6 +111,13 @@ class Handler():
                 X = self.vectorizer.transform(feature_dict)
                 predict = self.cls.predict(X)
                 if any(predict):
+                    for entity in entities:
+                        concept = get_concept(entity["kind"], entity["name"], entity.get("definition"))
+                        if not concept.get("uri"):
+                            continue
+                        concept_map[entity["name"]] = concept["uri"]
+                        concept_definitions[concept["uri"]] = concept
+                        sentence_indexes[concept["uri"]].add(idx)
 
                     gene_uri = concept_map.get(pair[0]["name"])
                     disease_uri = concept_map.get(pair[1]["name"])
@@ -127,36 +126,41 @@ class Handler():
                         k = key_for(gene_uri, disease_uri)
                         matched_sentences[k].add(idx)
                         predicted_associations[disease_uri].add(gene_uri)
+
         # END predictions
 
         # BEGIN generate results
         output = []
-        for disease_uri, gene_uris in predicted_associations:
-            disease_concept = concept_map[disease_uri]
-            gene_concepts = [concept_map[uri] for uri in gene_uris]
+        for disease_uri, gene_uris in predicted_associations.iteritems():
+            disease_concept = concept_definitions[disease_uri]
+            gene_concepts = [concept_definitions[uri] for uri in gene_uris]
 
-            disease_description = disease_concept.get("description", "*no description*")
+            disease_title = "**%s**" % self.href(disease_concept)
+            disease_description = disease_title + " " + disease_concept.get("description", "*no description*")
 
-            genes_list = "\n".join(["* " + self.href(g) for g in gene_concepts])
+            gene_list = "<ul>" + "".join(["<li>%s</li>" % self.href(g) for g in gene_concepts])
 
-            description = "%s <br><br> %s" % (disease_description, gene_list)
+            description = "%s \n\n %s<hr>" % (disease_description, gene_list)
 
-            prediction = {"type": "gene-disease relation prediction",
-                    "title": disease_concept["label"],
-                    "description": description}
+            prediction = {
+                "type": "gene-disease relation prediction",
+                "title": disease_concept["label"],
+                "description": description}
 
             annotations = []
+            s_idx = set()
             for gene_uri in gene_uris:
                 k = key_for(gene_uri, disease_uri)
-                indexes = matched_sentences[k]
-                for idx in indexes:
-                    sent_data, entities = sent_data[idx]
-                    annotations.append(annotation(sent_data))
+                s_idx = s_idx.union(matched_sentences[k])
+
+            for idx in s_idx:
+                sent_data, entities = sents[idx]
+                annotations.append(annotation(sent_data))
 
             prediction["annotations"] = annotations
             output.append(prediction)
 
-        return output
+        return sorted(output, key=lambda x: len(x["annotations"]))
 
 
     def handle(self, payload):
