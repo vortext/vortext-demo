@@ -21,3 +21,10 @@
   "Converts the first character of s to lower-case."
   [s]
   (str (.toLowerCase (subs s 0 1)) (subs s 1)))
+
+(defn parse-port [port]
+  (when port
+    (cond
+      (string? port) (Integer/parseInt port)
+      (number? port) port
+      :else          (throw (Exception. (str "invalid port value: " port))))))

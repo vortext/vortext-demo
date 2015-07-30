@@ -5,11 +5,12 @@
             [ring.middleware.reload :as reload]
             [environ.core :refer [env]]
             [org.httpkit.server :as http-kit]
+            [vortext.util :refer [parse-port]]
             [vortext.handler :refer [app init! destroy!]]))
 
 (def cli-options
   [["-p" "--port PORT" "Port number"
-    :default (env :port)
+    :default (parse-port (env :port))
     :parse-fn #(Integer/parseInt %)
     :validate [#(< 0 % 0x10000) "Must be a number between 0 and 65536"]]
    ["-d" "--dev" "Run server in development mode, will attempt to hot reload code"
