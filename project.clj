@@ -16,32 +16,32 @@
         :dev true}
   :dependencies [[org.clojure/clojure "1.7.0-beta2"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha"]
-                 [org.clojure/tools.cli "0.3.1"]
+                 [org.clojure/tools.cli "0.3.2"]
 
                  [log4j "1.2.17" :exclusions [javax.mail/mail
                                               javax.jms/jms
                                               com.sun.jdmk/jmxtools
                                               com.sun.jmx/jmxri]]
-                 [com.taoensso/timbre "3.4.0"]
+                 [com.taoensso/timbre "4.0.2"]
 
                  [environ "1.0.0"]
 
                  [lib-noir "0.9.9"]
                  [noir-exception "0.2.5"]
-                 [selmer "0.8.2"]
+                 [selmer "0.8.7"]
 
                  [http-kit "2.1.19"]
-                 [compojure "1.3.3"]
-                 [ring/ring-devel "1.3.2"]
+                 [compojure "1.4.0"]
+                 [ring/ring-devel "1.4.0"]
 
-                 [prismatic/plumbing "0.4.3"]
+                 [prismatic/plumbing "0.4.4"]
 
                  ;; serialization libraries
-                 [cheshire "5.4.0"]
+                 [cheshire "5.5.0"]
 
                  ;; ZeroMQ
                  [org.zeromq/cljzmq "0.1.4" :exclusions [org.zeromq/jzmq]]
-                 [org.zeromq/jeromq "0.3.4"]]
+                 [org.zeromq/jeromq "0.3.5"]]
 
   :uberjar-name "vortext-demo.jar"
   :profiles {:production {:env {:dev false}}})

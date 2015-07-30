@@ -6,7 +6,7 @@
             [noir.util.middleware :refer [app-handler]]
             [vortext.middleware :refer :all]
             [taoensso.timbre :as timbre]
-            [taoensso.timbre.appenders.rotor :as rotor]
+            [taoensso.timbre.appenders.3rd-party.rotor :as rotor]
             [ring.util.response :as response]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [vortext.routes.topology :refer [topology-routes]]
@@ -22,14 +22,13 @@
   "init will be called once when app is deployed as a servlet on an
   app server such as Tomcat put any initialization code here"
   []
-  (timbre/set-config!
-   [:appenders :rotor]
-   {:enabled? true,
-    :async? false,
-    :fn rotor/appender-fn})
-  (timbre/set-config!
-   [:shared-appender-config :rotor]
-   {:path "app.log", :max-size (* 512 1024), :backlog 10})
+  (timbre/merge-config!
+   {:level     (if (env :dev) :trace :info)
+    :appenders {:rotor (rotor/rotor-appender
+                        {:path "app.log"
+                         :max-size (* 512 1024)
+                         :backlog 10})}})
+
   (if (env :dev) (selmer.parser/cache-off!))
   (selmer.parser/add-tag! :csrf-token (fn [_ _] *anti-forgery-token*))
   (services/start!)
