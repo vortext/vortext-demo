@@ -44,13 +44,15 @@ define(function (require) {
     document.getElementById("top-bar")
   );
 
+  var isEditable = true;
+
   var documentComponent = React.render(
-    new Document({pdf: documentModel, marginalia: marginaliaModel}),
+    new Document({pdf: documentModel, marginalia: marginaliaModel, isEditable: isEditable}),
     document.getElementById("viewer")
   );
 
   var marginaliaComponent = React.render(
-    new Marginalia({marginalia: marginaliaModel}),
+    new Marginalia({marginalia: marginaliaModel, isEditable: isEditable}),
     document.getElementById("marginalia")
   );
 
