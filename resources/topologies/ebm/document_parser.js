@@ -6,12 +6,13 @@ var Q = require('q');
 global.window = global;
 global.navigator = { userAgent: 'node' };
 global.PDFJS = {};
+global.XMLHttpRequest = function() {}; // we don't really need this, but we could stub it with xhr2 or similar
+global.DOMParser = require('./domparsermock.js').DOMParserMock;
 
-require('./domstubs.js');
 
 PDFJS.workerSrc = true;
 
-require('./pdfjs/build/singlefile/build/pdf.combined.js');
+require('./pdfjs/pdf.combined.js');
 
 function textContent(pdf, content) {
   var pages = [];
