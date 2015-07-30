@@ -22,6 +22,9 @@
   [s]
   (str (.toLowerCase (subs s 0 1)) (subs s 1)))
 
+
+(def truthy?  #{"true" "TRUE" "True" "yes" "YES" "y" "1"})
+
 (defn parse-port [port]
   (when port
     (cond
