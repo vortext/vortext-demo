@@ -1,3 +1,6 @@
 [submodule "resources/public/scripts/spa"]
 	path = resources/public/scripts/spa
 	url = https://github.com/vortext/spa.git
+[submodule "resources/topologies/ebm/robotreviewer"]
+	path = resources/topologies/ebm/robotreviewer
+	url = https://github.com/ijmarshall/robotreviewer.git
