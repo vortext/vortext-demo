@@ -83,11 +83,12 @@ define(function (require) {
   documentModel.on("all", function(e, obj) {
     switch(e) {
     case "change:raw":
+
       documentComponent.setState({
         fingerprint: documentModel.get("fingerprint")
       });
       break;
-    case "change:raw":
+    case "change:binary":
       marginaliaModel.reset();
       marginaliaComponent.setState({loading: true});
       break;
