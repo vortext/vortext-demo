@@ -105,7 +105,7 @@ We require at least Java JVM/JDK 1.8 and Leiningen 2.4.
  git clone <this repo>
  cd <your folder>
  lein deps # retrieve project dependencies
- git submodule update --init --recursive
+ git submodule update --init
 #+END_SRC
 
 Furthermore, to make the RPC stuff work we require the following
