@@ -62,7 +62,7 @@ define(function (require) {
     switch(e) {
     case "reset":
       documentModel.annotate(marginaliaModel.getActive());
-      marginaliaComponent.forceUpdate();
+      marginaliaComponent.setState({loading: false});
       break;
     case "annotations:change":
       break;
@@ -89,6 +89,7 @@ define(function (require) {
       break;
     case "change:raw":
       marginaliaModel.reset();
+      marginaliaComponent.setState({loading: true});
       break;
     case "pages:change:state":
       if(obj.get("state") === window.RenderingStates.HAS_CONTENT) {
