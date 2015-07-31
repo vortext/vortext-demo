@@ -1,1 +1,1 @@
-Place the trained models in the models folder.
+This references RobotReviewer https://github.com/ijmarshall/robotreviewer
