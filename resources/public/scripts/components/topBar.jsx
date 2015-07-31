@@ -43,7 +43,7 @@ define(function (require) {
             <section className="top-bar-section">
               <ul className="right">
                 <input accept={this.props.accept} style={{display:"none"}} name="file" type="file" ref="file" onChange={this.loadFile} />
-
+                <li><a href="http://vortext.systems/robotreviewer">About</a></li>
                 <li><a onClick={this.loadExample}>Example</a></li>
                 <li className="active" onClick={this.triggerFileUpload}><a>Upload</a></li>
               </ul>
