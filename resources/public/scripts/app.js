@@ -87,7 +87,7 @@ define(function (require) {
         fingerprint: documentModel.get("fingerprint")
       });
       break;
-    case "change:binary":
+    case "change:raw":
       marginaliaModel.reset();
       break;
     case "pages:change:state":
