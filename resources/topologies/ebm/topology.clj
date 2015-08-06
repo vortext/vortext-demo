@@ -16,7 +16,7 @@
 
 (def topology
   {:source        (fnk [body] (.bytes body))
-   :text          (fnk [source] (js "ebm/document_parser.js" source :timeout 5000))
-   :risk-of-bias  (fnk [text] (py "ebm.risk_of_bias" text :timeout 5000))
+   :text          (fnk [source] (js "ebm/document_parser.js" source))
+   :risk-of-bias  (fnk [text] (py "ebm.robots" text :timeout 15000))
    :sink          (fnk [risk-of-bias] (json/encode (merge-marginalia risk-of-bias)))
    })

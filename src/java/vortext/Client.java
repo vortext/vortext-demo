@@ -45,7 +45,7 @@ public class Client {
     private String broker;
     private ZContext ctx;
     private ZMQ.Socket client;
-    private long timeout = 25000;
+    private long timeout = 100000;
     private int retries = 3;
     private boolean verbose = false;
     private Formatter log = new Formatter(System.out);

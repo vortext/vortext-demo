@@ -8,10 +8,12 @@ sys.path.append('../../multilang/python')
 sys.path.append(os.path.abspath("resources/topologies/ebm/"))
 
 from robotreviewer import biasrobot
+from robotreviewer import PICO_robot
 
 class Handler():
     def __init__(self):
-        self.bot = biasrobot.BiasRobot()
+        self.rob_bot = biasrobot.BiasRobot()
+        self.pico_bot = PICO_robot.PICORobot()
 
     def handle(self, payload):
         """
@@ -22,4 +24,9 @@ class Handler():
 
         text = " ".join(document["pages"])
 
-        return json.dumps(self.bot.annotate(text))
+        annotations = self.rob_bot.annotate(text)
+        PICO_annotations = self.pico_bot.annotate(text)
+
+        annotations['marginalia'].extend(PICO_annotations['marginalia'])
+
+        return json.dumps(annotations)
