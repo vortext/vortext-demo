@@ -1,6 +1,6 @@
 * Background
 This repository contains the code for demonstrating various machine learning models.
-It currently power [[https://robot-reviewer.vortext.systems/][Robot-Reviewer]], a system for automatically extracting Risk of Bias from Randomized Controlled Trial publications.
+It currently powers [[https://robot-reviewer.vortext.systems/][Robot-Reviewer]], a system for automatically extracting Risk of Bias from Randomized Controlled Trial publications.
 
 In essence it's [[https://github.com/vortext/vortext][Vortext]] stripped down to essentials, and with the ability to run predictions in various programming languages.
 At some point the functionality between these two will hopefully converge.
