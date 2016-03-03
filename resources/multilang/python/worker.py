@@ -37,8 +37,8 @@ class MajorDomoWorker(object):
     reply_to = None
 
     def __init__(self, options, verbose=False):
-        self.broker = options.socket
-        self.service = options.name
+        self.broker = options.socket.encode('utf-8')
+        self.service = options.name.encode('utf-8')
         self.heartbeat = options.heartbeat
         self.reconnect = options.reconnect
         self.timeout = options.timeout
@@ -75,15 +75,19 @@ class MajorDomoWorker(object):
 
         If no msg is provided, creates one internally
         """
+
         if msg is None:
             msg = []
         elif not isinstance(msg, list):
             msg = [msg]
 
+
         if option:
             msg = [option] + msg
 
-        msg = ['', MDP.W_WORKER, command] + msg
+
+        msg = [b'', MDP.W_WORKER, command] + msg
+                
         self.worker.send_multipart(msg)
 
     def recv(self, reply=None):
@@ -93,7 +97,7 @@ class MajorDomoWorker(object):
 
         if reply is not None:
             assert self.reply_to is not None
-            reply = [self.reply_to, ''] + [reply]
+            reply = [self.reply_to, b''] + [reply]
             self.send_to_broker(MDP.W_REPLY, msg=reply)
 
         self.expect_reply = True
@@ -112,20 +116,26 @@ class MajorDomoWorker(object):
                 assert len(msg) >= 3
 
                 empty = msg.pop(0)
-                assert empty == ''
+                assert empty == b''
 
                 header = msg.pop(0)
+
                 assert header == MDP.W_WORKER
 
+
                 command = msg.pop(0)
+
                 if command == MDP.W_REQUEST:
                     # We should pop and save as many addresses as there are
                     # up to a null part, but for now, just save one...
                     self.reply_to = msg.pop(0)
-                    # pop empty
-                    assert msg.pop(0) == ''
 
+                    # pop empty
+                    assert msg.pop(0) == b''
+                    
+                    
                     return msg.pop(0) # We have a request to process
+
                 elif command == MDP.W_HEARTBEAT:
                     # Do nothing for heartbeats
                     pass
