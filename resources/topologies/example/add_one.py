@@ -7,7 +7,7 @@ class Handler(AbstractHandler):
 
     def __init__(self):
         # Setup here
-        print "Hello, I'm adding one"
+        print("Hello, I'm adding one")
 
     def handle(self, input):
         return str(int(input) + 1)
