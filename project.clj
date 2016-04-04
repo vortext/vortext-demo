@@ -14,27 +14,27 @@
 
         :port 8888
         :dev true}
-  :dependencies [[org.clojure/clojure "1.7.0-beta2"]
-                 [org.clojure/core.async "0.1.303.0-886421-alpha"]
-                 [org.clojure/tools.cli "0.3.2"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
+                 [org.clojure/core.async "0.2.374"]
+                 [org.clojure/tools.cli "0.3.3"]
 
                  [log4j "1.2.17" :exclusions [javax.mail/mail
                                               javax.jms/jms
                                               com.sun.jdmk/jmxtools
                                               com.sun.jmx/jmxri]]
-                 [com.taoensso/timbre "4.0.2"]
+                 [com.taoensso/timbre "4.3.1"]
 
-                 [environ "1.0.0"]
+                 [environ "1.0.2"]
 
                  [lib-noir "0.9.9"]
                  [noir-exception "0.2.5"]
-                 [selmer "0.8.7"]
+                 [selmer "1.0.3"]
 
                  [http-kit "2.1.19"]
-                 [compojure "1.4.0"]
+                 [compojure "1.5.0"]
                  [ring/ring-devel "1.4.0"]
 
-                 [prismatic/plumbing "0.4.4"]
+                 [prismatic/plumbing "0.5.3"]
 
                  ;; serialization libraries
                  [cheshire "5.5.0"]
