@@ -16,5 +16,5 @@ rm -rf $TMP
 
 cd $CURR
 
-#echo "building image"
-#docker build .
+echo "building image"
+docker build .
