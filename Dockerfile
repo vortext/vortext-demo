@@ -23,13 +23,7 @@ RUN sed 's/main$/main universe/' -i /etc/apt/sources.list
 RUN add-apt-repository ppa:webupd8team/java -y
 RUN apt-get update
 RUN echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections
-RUN apt-get install -y oracle-java8-installer zip
-
-# download & install leiningen
-RUN su deploy -c 'mkdir /var/lib/deploy/bin'
-RUN su deploy -c 'curl -L "https://raw.github.com/technomancy/leiningen/stable/bin/lein" -o /var/lib/deploy/bin/lein'
-RUN chmod +x /var/lib/deploy/bin/lein
-RUN su - deploy -c 'lein upgrade'
+RUN apt-get install -y --force-yes oracle-java8-installer zip
 
 # download and install zmq
 RUN add-apt-repository ppa:chris-lea/zeromq
@@ -47,6 +41,24 @@ RUN ln -s /usr/bin/nodejs /usr/bin/node
 # node.js deps
 RUN npm install q underscore zmq atob commander
 
+# Get the source
+ADD deploy.tar.gz /var/lib/deploy/src
+
+RUN mkdir -p /etc/pki/tls/certs
+RUN ln -s /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt
+
+# download & install leiningen
+RUN su - deploy -c 'mkdir /var/lib/deploy/bin'
+RUN su - deploy -c 'curl -L "https://raw.github.com/technomancy/leiningen/stable/bin/lein" -o /var/lib/deploy/bin/lein'
+RUN su - deploy -c 'chmod +x /var/lib/deploy/bin/lein'
+ENV PATH=/var/lib/deploy/bin:$PATH
+RUN su - deploy -c 'lein upgrade'
+
+# add run file
+ADD run.sh /var/lib/deploy/bin/run
+RUN chmod +x /var/lib/deploy/bin/run
+
+RUN chown -R deploy.deploy /var/lib/deploy
 
 ## From here on we're the deploy user
 USER deploy
@@ -63,19 +75,9 @@ RUN pip install -r /tmp/requirements.txt
 RUN python -m nltk.downloader punkt
 RUN python -m nltk.downloader stopwords
 
-# Get the source
-RUN mkdir /var/lib/deploy
-ADD deploy.tar.gz /var/lib/deploy
-RUN mkdir /var/lib/deploy/src/
-RUN tar -xzf archive.tar -C /var/lib/deploy/src/
-
 # compile client side assets
-RUN su - deploy -c 'cd /var/lib/deploy/src/resources &&  r.js -o public/build.js && rm -rf public && mv build public'
-
-# add run file
-ADD run.sh /var/lib/deploy/bin/run
-RUN chown deploy.deploy /var/lib/deploy/bin/run
-RUN su - deploy -c 'chmod +x bin/run'
+RUN cd /var/lib/deploy/src/resources &&  r.js -o public/build.js && rm -rf public && mv build public
+RUN cd /var/lib/deploy/src/ && lein deps compile
 
 EXPOSE 8888
 USER deploy
