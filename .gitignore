@@ -52,3 +52,4 @@ resources/topologies/*
 resources/topologies/ebm/models/
 !.gitkeep
 
+deploy.tar.gz

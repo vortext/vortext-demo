@@ -1,0 +1,8 @@
+pyzmq
+argparse
+sklearn
+numpy
+scipy
+nltk
+dataset
+unidecode
